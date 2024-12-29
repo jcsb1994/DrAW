@@ -10,6 +10,7 @@
 
 #include <JuceHeader.h>
 #include "PluginProcessor.h"
+#include "MainCmp.h"
 
 //==============================================================================
 /**
@@ -28,6 +29,7 @@ private:
     // This reference is provided as a quick way for your editor to
     // access the processor object that created it.
     Juce_sandboxAudioProcessor& audioProcessor;
+    MainCmp main_cmp;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Juce_sandboxAudioProcessorEditor)
 };
