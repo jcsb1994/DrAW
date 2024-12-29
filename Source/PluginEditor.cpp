@@ -9,6 +9,9 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
+#define PLUGIN_WIDTH 400
+#define PLUGIN_HEIGHT 300
+
 //==============================================================================
 Juce_sandboxAudioProcessorEditor::Juce_sandboxAudioProcessorEditor (Juce_sandboxAudioProcessor& p)
     : AudioProcessorEditor (&p), audioProcessor (p)
@@ -16,7 +19,7 @@ Juce_sandboxAudioProcessorEditor::Juce_sandboxAudioProcessorEditor (Juce_sandbox
     // Make sure that before the constructor has finished, you've set the
     // editor's size to whatever you need it to be.
     addAndMakeVisible(main_cmp);
-    setSize (400, 300);
+    setSize (PLUGIN_WIDTH, PLUGIN_HEIGHT);
 }
 
 Juce_sandboxAudioProcessorEditor::~Juce_sandboxAudioProcessorEditor()
@@ -38,5 +41,5 @@ void Juce_sandboxAudioProcessorEditor::resized()
 {
     // This is generally where you'll want to lay out the positions of any
     // subcomponents in your editor..
-    main_cmp.setBounds(3, 3, 350, 250);
+    main_cmp.setBounds(3, 3, PLUGIN_WIDTH-3, PLUGIN_HEIGHT-3);
 }
