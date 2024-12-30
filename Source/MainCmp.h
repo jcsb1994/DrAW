@@ -15,7 +15,7 @@
 //==============================================================================
 /*
 */
-class MainCmp  : public juce::Component
+class MainCmp  : public juce::Component, juce::Button::Listener
 {
 public:
     MainCmp();
@@ -24,6 +24,13 @@ public:
     void paint (juce::Graphics&) override;
     void resized() override;
 
+    // Button::Listener overrides
+    void buttonClicked(juce::Button* button) override;
+    
 private:
+
+    // Child components
+    juce::TextButton myButton;
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainCmp)
 };
