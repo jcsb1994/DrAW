@@ -4,6 +4,9 @@
               addUsingNamespaceToJuceHeader="0" jucerFormatVersion="1">
   <MAINGROUP id="MeKCKC" name="juce_sandbox">
     <GROUP id="{A860525D-9C4B-0032-376B-9E639C561295}" name="Source">
+      <FILE id="MfWlAu" name="RedButt.cpp" compile="1" resource="0" file="Source/buttons/RedButt.cpp"/>
+      <FILE id="tQUGrv" name="RedButt.h" compile="0" resource="0" file="Source/buttons/RedButt.h"/>
+      <GROUP id="{39F2C425-5569-A8B5-1ED6-90A77465B80A}" name="buttons"/>
       <FILE id="mugYHT" name="MainCmp.cpp" compile="1" resource="0" file="Source/MainCmp.cpp"/>
       <FILE id="Eh9sVR" name="MainCmp.h" compile="0" resource="0" file="Source/MainCmp.h"/>
       <FILE id="j5Nvnr" name="PluginProcessor.cpp" compile="1" resource="0"
@@ -34,7 +37,7 @@
   <EXPORTFORMATS>
     <VS2022 targetFolder="Builds/VisualStudio2022">
       <CONFIGURATIONS>
-        <CONFIGURATION isDebug="1" name="Debug" targetName="juce_sandbox"/>
+        <CONFIGURATION isDebug="1" name="Debug" targetName="juce_sandbox" defines="JUCE_USE_CONSOLE=1"/>
         <CONFIGURATION isDebug="0" name="Release" targetName="juce_sandbox"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
