@@ -11,6 +11,9 @@
 #include <JuceHeader.h>
 #include "MainCmp.h"
 
+#include <windows.h> // For Windows API (console manipulation)
+
+
 //==============================================================================
 MainCmp::MainCmp()
 {
@@ -18,11 +21,20 @@ MainCmp::MainCmp()
     myButton.setButtonText("Click Me!");
     myButton.addListener(this); // Add listener
     // NOTE: Don't use setSize() for child components, their size is always managed by parents in their resized() fct
+
+
+    if (AllocConsole()) // Open a console window
+    {
+        freopen("CONOUT$", "w", stdout); // Redirect stdout to the console
+        freopen("CONOUT$", "w", stderr); // Redirect stderr to the console
+    }
 }
 
 MainCmp::~MainCmp()
 {
     myButton.removeListener(this);
+
+    FreeConsole(); // Close the console when the application quits
 }
 
 void MainCmp::paint (juce::Graphics& g)
@@ -60,6 +72,8 @@ void MainCmp::buttonClicked(juce::Button* button)
 {
     if (button == &myButton)
     {
+        std::cout << "Console works!" << std::endl;
+
         // FIXME: this overrides the Lookandfeel hover effects and such, use my own lookandfeel instead
         button->setColour(juce::TextButton::buttonColourId, juce::Colours::red);
     }
