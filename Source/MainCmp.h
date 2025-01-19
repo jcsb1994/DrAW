@@ -13,6 +13,7 @@
 #include <JuceHeader.h>
 // user
 #include "buttons/RedButt.h"
+#include "graph/graphCmp.h"
 
 //==============================================================================
 /*
@@ -33,6 +34,7 @@ private:
 
     // Child components
     RedButt redButton;
+    FrequencyGraph graph;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainCmp)
 };

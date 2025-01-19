@@ -4,6 +4,8 @@
               addUsingNamespaceToJuceHeader="0" jucerFormatVersion="1">
   <MAINGROUP id="MeKCKC" name="juce_sandbox">
     <GROUP id="{A860525D-9C4B-0032-376B-9E639C561295}" name="Source">
+      <FILE id="rEbTQ6" name="graphCmp.cpp" compile="1" resource="0" file="Source/graph/graphCmp.cpp"/>
+      <FILE id="LhLNRl" name="graphCmp.h" compile="0" resource="0" file="Source/graph/graphCmp.h"/>
       <FILE id="MfWlAu" name="RedButt.cpp" compile="1" resource="0" file="Source/buttons/RedButt.cpp"/>
       <FILE id="tQUGrv" name="RedButt.h" compile="0" resource="0" file="Source/buttons/RedButt.h"/>
       <GROUP id="{39F2C425-5569-A8B5-1ED6-90A77465B80A}" name="buttons"/>

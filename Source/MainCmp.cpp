@@ -18,6 +18,8 @@
 MainCmp::MainCmp()
 {
     addAndMakeVisible(redButton);
+    addAndMakeVisible(graph);
+
     redButton.addListener(this); // Add listener
     // NOTE: Don't use setSize() for child components, their size is always managed by parents in their resized() fct
 
@@ -64,6 +66,7 @@ void MainCmp::resized()
     int x = (getWidth() - buttonWidth) / 2;             // Center horizontally
     int y = (getHeight() * 3) / 4 - buttonHeight / 2;   // 3/4 vertically
     redButton.setBounds(x, y, buttonWidth, buttonHeight);
+    graph.setBounds(0,0,400,150);
 }
 
 // Button::Listener overrides
