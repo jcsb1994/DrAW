@@ -17,9 +17,8 @@
 //==============================================================================
 MainCmp::MainCmp()
 {
-    addAndMakeVisible(myButton);
-    myButton.setButtonText("Click Me!");
-    myButton.addListener(this); // Add listener
+    addAndMakeVisible(redButton);
+    redButton.addListener(this); // Add listener
     // NOTE: Don't use setSize() for child components, their size is always managed by parents in their resized() fct
 
 
@@ -32,7 +31,7 @@ MainCmp::MainCmp()
 
 MainCmp::~MainCmp()
 {
-    myButton.removeListener(this);
+    redButton.removeListener(this);
 
     FreeConsole(); // Close the console when the application quits
 }
@@ -64,17 +63,14 @@ void MainCmp::resized()
 
     int x = (getWidth() - buttonWidth) / 2;             // Center horizontally
     int y = (getHeight() * 3) / 4 - buttonHeight / 2;   // 3/4 vertically
-    myButton.setBounds(x, y, buttonWidth, buttonHeight);
+    redButton.setBounds(x, y, buttonWidth, buttonHeight);
 }
 
 // Button::Listener overrides
 void MainCmp::buttonClicked(juce::Button* button)
 {
-    if (button == &myButton)
+    if (button == &redButton)
     {
-        std::cout << "Console works!" << std::endl;
-
-        // FIXME: this overrides the Lookandfeel hover effects and such, use my own lookandfeel instead
-        button->setColour(juce::TextButton::buttonColourId, juce::Colours::red);
+        std::cout << "red butt" << std::endl;
     }
 }

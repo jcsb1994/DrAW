@@ -11,6 +11,8 @@
 #pragma once
 
 #include <JuceHeader.h>
+// user
+#include "buttons/RedButt.h"
 
 //==============================================================================
 /*
@@ -26,11 +28,11 @@ public:
 
     // Button::Listener overrides
     void buttonClicked(juce::Button* button) override;
-    
+
 private:
 
     // Child components
-    juce::TextButton myButton;
+    RedButt redButton;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainCmp)
 };

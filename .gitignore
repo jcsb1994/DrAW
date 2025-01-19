@@ -1,2 +1,5 @@
 Builds
 # Keep JuceLibraryCode because working alone
+
+# VS code undesired
+settings.json
