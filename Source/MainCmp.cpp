@@ -60,13 +60,20 @@ void MainCmp::paint (juce::Graphics& g)
 
 void MainCmp::resized()
 {
-    constexpr int buttonWidth = 200;
-    constexpr int buttonHeight = 50;
+    /* Setting the bounds of our subcomponents. At first, we may put harcoded values, but it is best
+        to pass fractions of the main component's size */
+    auto bounds = getLocalBounds();
 
-    int x = (getWidth() - buttonWidth) / 2;             // Center horizontally
-    int y = (getHeight() * 3) / 4 - buttonHeight / 2;   // 3/4 vertically
-    redButton.setBounds(x, y, buttonWidth, buttonHeight);
-    graph.setBounds(0,0,400,150);
+    /* Interactive graph - placed at the top half of the GUI */
+    auto graph_rectangle = bounds.removeFromTop(bounds.getHeight() / 2);
+    graph.setBounds(graph_rectangle); // passes X,Y,W,H
+
+    /* Dummy button placed at center of bottom half */
+    int redButt_w = bounds.getWidth() * 0.2f;
+    int redButt_h = bounds.getHeight() * 0.1f;
+    auto redButt_rect = bounds.withSizeKeepingCentre(redButt_w, redButt_h);
+    redButton.setBounds(redButt_rect);
+
 }
 
 // Button::Listener overrides

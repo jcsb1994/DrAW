@@ -8,13 +8,54 @@ public:
     FrequencyGraph()
     {
         // Initialize dots: frequency (Hz), amplitude (dB)
-        dots = { {100.0f, 0.0f}, {1000.0f, 0.0f}, {10000.0f, 0.0f} };
+        // Start with hardcoded dots TODO: make vector that can take more
+        dots = {
+            {100.0f, 0.0f},
+            {1000.0f, 0.0f},
+            {10000.0f, 0.0f} };
+    }
+
+    void resized() override
+    {
+        // Recreate static graph image when the component is resized
+        createStaticGraph();
     }
 
     void paint(juce::Graphics& g) override
     {
+
+        // Draw the cached static graph
+
+        g.drawImageAt(staticGraph, 0, 0);
+
+        // Draw dynamic elements (dots and lines)
+
+        g.setColour(juce::Colours::cyan);
+        auto graphBounds = getGraphBounds();
+
+        for (size_t i = 0; i < dots.size(); ++i)
+        {
+            float x = frequencyToX(dots[i].first, graphBounds);
+            float y = amplitudeToY(dots[i].second, graphBounds);
+
+            if (i > 0) {
+                float prevX = frequencyToX(dots[i - 1].first, graphBounds);
+                float prevY = amplitudeToY(dots[i - 1].second, graphBounds);
+                g.drawLine(prevX, prevY, x, y, 2.0f);
+            }
+
+            g.fillEllipse(x - 5, y - 5, 10, 10); // Draw dot
+        }
+    }
+
+
+    void createStaticGraph()
+    {
         auto bounds = getLocalBounds();
-        auto graphBounds = bounds.reduced(40);
+        auto graphBounds = getGraphBounds();
+
+        staticGraph = juce::Image(juce::Image::RGB, bounds.getWidth(), bounds.getHeight(), true);
+        juce::Graphics g(staticGraph);
 
         // Draw background
         g.fillAll(juce::Colours::black);
@@ -38,24 +79,13 @@ public:
             g.drawHorizontalLine((int)y, graphBounds.getX(), graphBounds.getRight());
             g.drawText(juce::String(dB) + " dB", graphBounds.getX() - 35, (int)y - 10, 30, 20, juce::Justification::centredRight);
         }
-
-        // Draw line and dots
-        g.setColour(juce::Colours::cyan);
-        for (size_t i = 0; i < dots.size(); ++i)
-        {
-            float x = frequencyToX(dots[i].first, graphBounds);
-            float y = amplitudeToY(dots[i].second, graphBounds);
-
-            if (i > 0)
-            {
-                float prevX = frequencyToX(dots[i - 1].first, graphBounds);
-                float prevY = amplitudeToY(dots[i - 1].second, graphBounds);
-                g.drawLine(prevX, prevY, x, y, 2.0f);
-            }
-
-            g.fillEllipse(x - 5, y - 5, 10, 10); // Draw dot
-        }
     }
+
+    juce::Rectangle<int> getGraphBounds() const
+    {
+        return getLocalBounds().reduced(40); // Trims the component bounds on all sides, très utile pour encadrés
+    }
+
 
     void mouseDown(const juce::MouseEvent& event) override
     {
@@ -102,6 +132,8 @@ public:
 private:
     std::vector<std::pair<float, float>> dots; // Dots: frequency (Hz), amplitude (dB)
     int draggedDotIndex = -1;
+
+    juce::Image staticGraph;
 
     // Map frequency (log scale) to X position
     float frequencyToX(float freq, juce::Rectangle<int> bounds) const

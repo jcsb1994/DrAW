@@ -9,8 +9,8 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
-#define PLUGIN_WIDTH 400
-#define PLUGIN_HEIGHT 300
+#define PLUGIN_WIDTH 800
+#define PLUGIN_HEIGHT 600
 
 //==============================================================================
 Juce_sandboxAudioProcessorEditor::Juce_sandboxAudioProcessorEditor (Juce_sandboxAudioProcessor& p)
