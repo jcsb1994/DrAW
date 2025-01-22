@@ -8,11 +8,11 @@ public:
     FrequencyGraph()
     {
         // Initialize dots: frequency (Hz), amplitude (dB)
-        // Start with hardcoded dots TODO: make vector that can take more
+
         dots = {
-            {100.0f, 0.0f},
-            {1000.0f, 0.0f},
-            {10000.0f, 0.0f} };
+            {0.0f, 0.0f},       // (0 Hz, 0 dB)
+            {20000.0f, 0.0f}    // (20000 Hz, 0 dB)
+        };
     }
 
     void resized() override
@@ -89,27 +89,34 @@ public:
 
     void mouseDown(const juce::MouseEvent& event) override
     {
-        // Check if the mouse clicked near a dot
-        auto graphBounds = getLocalBounds().reduced(40);
+        auto graphBounds = getGraphBounds();
+        float mouseX = event.position.x;
+        float mouseY = event.position.y;
 
-        for (size_t i = 0; i < dots.size(); ++i)
+        // Check if we clicked on an existing dot
+        int clickedDotIndex = getClickedDotIndex(mouseX, mouseY, graphBounds);
+        if (clickedDotIndex != -1)
         {
-            float x = frequencyToX(dots[i].first, graphBounds);
-            float y = amplitudeToY(dots[i].second, graphBounds);
-
-            if (juce::Rectangle<float>(x - 5, y - 5, 10, 10).contains(event.position))
-            {
-                draggedDotIndex = (int)i;
-                return;
-            }
+            // Start dragging this dot
+            draggedDotIndex = clickedDotIndex;
+            return;
         }
+
+        // Otherwise, split the closest line
+        float freq = xToFrequency(mouseX, graphBounds);
+        float amp = yToAmplitude(mouseY, graphBounds);
+
+        size_t closestIndex = findClosestLineSegment(freq, amp, graphBounds);
+        dots.insert(dots.begin() + closestIndex + 1, { freq, amp });
+
+        repaint();
     }
 
     void mouseDrag(const juce::MouseEvent& event) override
     {
         if (draggedDotIndex >= 0)
         {
-            auto graphBounds = getLocalBounds().reduced(40);
+            auto graphBounds = getGraphBounds();
 
             // Convert mouse position to frequency and amplitude
             float freq = xToFrequency(event.position.x, graphBounds);
@@ -158,4 +165,63 @@ private:
     {
         return 24.0f - (y - bounds.getY()) * 48.0f / bounds.getHeight();
     }
+
+
+
+    int getClickedDotIndex(float mouseX, float mouseY, const juce::Rectangle<int>& bounds) const
+    {
+        for (size_t i = 0; i < dots.size(); ++i)
+        {
+            float x = frequencyToX(dots[i].first, bounds);
+            float y = amplitudeToY(dots[i].second, bounds);
+
+            // Check if the mouse click is within the dot's radius
+            if (std::hypot(mouseX - x, mouseY - y) <= 5.0f)
+                return static_cast<int>(i);
+        }
+        return -1; // No dot clicked
+    }
+
+    size_t findClosestLineSegment(float freq, float amp, const juce::Rectangle<int>& bounds) const
+    {
+        size_t closestIndex = 0;
+        float closestDistance = std::numeric_limits<float>::max();
+
+        for (size_t i = 0; i < dots.size() - 1; ++i)
+        {
+            auto x1 = frequencyToX(dots[i].first, bounds);
+            auto y1 = amplitudeToY(dots[i].second, bounds);
+            auto x2 = frequencyToX(dots[i + 1].first, bounds);
+            auto y2 = amplitudeToY(dots[i + 1].second, bounds);
+
+            float distance = pointToLineSegmentDistance({ x1, y1 }, { x2, y2 }, { freq, amp });
+            if (distance < closestDistance)
+            {
+                closestDistance = distance;
+                closestIndex = i;
+            }
+        }
+
+        return closestIndex;
+    }
+
+    float pointToLineSegmentDistance(juce::Point<float> p1, juce::Point<float> p2, juce::Point<float> p) const
+    {
+        auto d = p2 - p1;
+        float lenSquared = d.x * d.x + d.y * d.y; // Squared length of the line segment
+
+        if (lenSquared == 0.0f)
+            return p.getDistanceFrom(p1); // If the line segment is a point, return distance to p1
+
+        // Project the point onto the line segment and clamp to the segment
+        auto t = ((p.x - p1.x) * d.x + (p.y - p1.y) * d.y) / lenSquared;
+        t = juce::jlimit(0.0f, 1.0f, t);
+
+        // Compute the projection point
+        auto projection = p1 + d * t;
+
+        // Return the distance from the point to the projection
+        return p.getDistanceFrom(projection);
+    }
+
 };
