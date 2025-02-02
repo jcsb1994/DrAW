@@ -1,6 +1,7 @@
 /* Component that manages a graph with an interactive line */
 
 #include <JuceHeader.h>
+#include <algorithm>
 
 class FrequencyGraph : public juce::Component
 {
@@ -32,8 +33,8 @@ public:
 
         g.setColour(juce::Colours::cyan);
         auto graphBounds = getGraphBounds();
-
-        for (size_t i = 0; i < dots.size(); ++i)
+        std::cout << dots.size();
+        for (size_t i = 0; i < dots.size(); i++)
         {
             float x = frequencyToX(dots[i].first, graphBounds);
             float y = amplitudeToY(dots[i].second, graphBounds);
@@ -68,9 +69,26 @@ public:
         for (float freq = 100.0f; freq <= 10000.0f; freq *= 10.0f)
         {
             float x = frequencyToX(freq, graphBounds);
+
+            // Draw main vertical line
             g.drawVerticalLine((int)x, graphBounds.getY(), graphBounds.getBottom());
             g.drawText(juce::String(freq, 0) + " Hz", (int)x - 20, graphBounds.getBottom() + 5, 40, 20, juce::Justification::centred);
+
+            // Add dimmer vertical lines for intermediate frequencies
+            g.setColour(juce::Colours::grey.withAlpha(0.6f)); // Dimmer lines
+            for (int i = 2; i < 10; ++i)
+            {
+                float subFreq = freq * i;
+                if (subFreq > 20000.0f) break; // Prevent exceeding 20 kHz
+
+                float subX = frequencyToX(subFreq, graphBounds);
+                g.drawVerticalLine((int)subX, graphBounds.getY(), graphBounds.getBottom());
+            }
+
+            // Reset colour for main lines
+            g.setColour(juce::Colours::white);
         }
+
 
         // Draw Y-axis (linear amplitude scale)
         for (int dB = -24; dB <= 24; dB += 6)
@@ -93,6 +111,8 @@ public:
         float mouseX = event.position.x;
         float mouseY = event.position.y;
 
+        std::cout << "Click: " << mouseX << ", " << mouseY << "\n";
+
         // Check if we clicked on an existing dot
         int clickedDotIndex = getClickedDotIndex(mouseX, mouseY, graphBounds);
         if (clickedDotIndex != -1)
@@ -106,8 +126,19 @@ public:
         float freq = xToFrequency(mouseX, graphBounds);
         float amp = yToAmplitude(mouseY, graphBounds);
 
-        size_t closestIndex = findClosestLineSegment(freq, amp, graphBounds);
-        dots.insert(dots.begin() + closestIndex + 1, { freq, amp });
+
+        // Find the position to insert based on the x value
+        auto it = std::lower_bound(dots.begin(), dots.end(), freq,
+            [](const std::pair<int, int>& a, int value) {
+                return a.first < value; // Compare only the x (first) value
+            });
+        // Calculate index
+        size_t index = std::distance(dots.begin(), it);
+
+
+        // size_t closestIndex = findClosestLineSegment(freq, amp, graphBounds);
+        dots.insert(dots.begin() + index + 1, { freq, amp });
+        std::cout << "at " << (index + 1);
 
         repaint();
     }
@@ -137,6 +168,9 @@ public:
     }
 
 private:
+
+    const std::pair<float, float> graph_f_bounds{ 100.0f, 20000.0f };
+
     std::vector<std::pair<float, float>> dots; // Dots: frequency (Hz), amplitude (dB)
     int draggedDotIndex = -1;
 
@@ -145,7 +179,8 @@ private:
     // Map frequency (log scale) to X position
     float frequencyToX(float freq, juce::Rectangle<int> bounds) const
     {
-        return bounds.getX() + bounds.getWidth() * std::log10(freq / 100.0f) / std::log10(10000.0f / 100.0f);
+        float log_ratio = std::log10(graph_f_bounds.second / graph_f_bounds.first);
+        return bounds.getX() + bounds.getWidth() * std::log10(freq / graph_f_bounds.first) / log_ratio;
     }
 
     // Map amplitude to Y position
@@ -157,7 +192,11 @@ private:
     // Map X position to frequency
     float xToFrequency(float x, juce::Rectangle<int> bounds) const
     {
-        return 100.0f * std::pow(10.0f, (x - bounds.getX()) / bounds.getWidth() * std::log10(10000.0f / 100.0f));
+        float log_ratio = std::log10(graph_f_bounds.second / graph_f_bounds.first);
+        float x_offset = x - bounds.getX();
+        float result =  graph_f_bounds.first * std::pow(10.0f, x_offset / bounds.getWidth() * log_ratio);
+        std:: cout << "X @ offset " << x_offset << " to frquency:\n\tLog10(20k/100)=" << log_ratio << "\n\tFinal freq=" << result;
+        return result;
     }
 
     // Map Y position to amplitude
@@ -166,7 +205,10 @@ private:
         return 24.0f - (y - bounds.getY()) * 48.0f / bounds.getHeight();
     }
 
-
+    void debug_dot(uint8_t index, float x, float y, float freq) const
+    {
+        std::cout << "dot " << index << ": " <<  "(" << x << ", " << y << ")" << " " << freq << "Hz\n";
+    }
 
     int getClickedDotIndex(float mouseX, float mouseY, const juce::Rectangle<int>& bounds) const
     {
@@ -174,7 +216,7 @@ private:
         {
             float x = frequencyToX(dots[i].first, bounds);
             float y = amplitudeToY(dots[i].second, bounds);
-
+            debug_dot(i, x, y, dots[i].first);
             // Check if the mouse click is within the dot's radius
             if (std::hypot(mouseX - x, mouseY - y) <= 5.0f)
                 return static_cast<int>(i);
