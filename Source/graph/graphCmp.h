@@ -118,27 +118,46 @@ public:
         if (clickedDotIndex != -1)
         {
             // Start dragging this dot
+            std::cout << "A";
             draggedDotIndex = clickedDotIndex;
+            std::cout << "B";
             return;
         }
-
+        std::cout << "C";
         // Otherwise, split the closest line
         float freq = xToFrequency(mouseX, graphBounds);
         float amp = yToAmplitude(mouseY, graphBounds);
+        std::cout << "D";
 
-
-        // Find the position to insert based on the x value
+        // Find the position to insert based on the first value (freq)
+        // Since we work with a vector of pairs, we need a comparator fct (as a lambda)
         auto it = std::lower_bound(dots.begin(), dots.end(), freq,
-            [](const std::pair<int, int>& a, int value) {
-                return a.first < value; // Compare only the x (first) value
-            });
+            [](const std::pair<float, float>& dot, float value) {
+                std::cout << "is it " << dot.first << "\n";
+                return dot.first < value;
+            }
+        );
+
+        size_t index;
+
+        if (it == dots.end()) {
+            index = dots.size() - 1;
+            std::cout << index << " at end\n";
+        } else {
+            index = std::distance(dots.begin(), it);
+        }
+
         // Calculate index
-        size_t index = std::distance(dots.begin(), it);
+        std::cout << "Idx " << index << "\n";
 
+        dots.insert(dots.begin() + index, { freq, amp });
 
-        // size_t closestIndex = findClosestLineSegment(freq, amp, graphBounds);
-        dots.insert(dots.begin() + index + 1, { freq, amp });
-        std::cout << "at " << (index + 1);
+        for (size_t i = 0; i < dots.size(); i++) {
+            std::cout << dots[i].first << "Hz, ";
+
+        }
+
+        std::cout << (index + 1) << "th dot added\n";
 
         repaint();
     }
@@ -154,7 +173,7 @@ public:
             float amp = yToAmplitude(event.position.y, graphBounds);
 
             // Clamp values to valid ranges
-            freq = juce::jlimit(100.0f, 10000.0f, freq);
+            freq = juce::jlimit(100.0f, 20000.0f, freq);
             amp = juce::jlimit(-24.0f, 24.0f, amp);
 
             dots[draggedDotIndex] = { freq, amp };
@@ -195,7 +214,7 @@ private:
         float log_ratio = std::log10(graph_f_bounds.second / graph_f_bounds.first);
         float x_offset = x - bounds.getX();
         float result =  graph_f_bounds.first * std::pow(10.0f, x_offset / bounds.getWidth() * log_ratio);
-        std:: cout << "X @ offset " << x_offset << " to frquency:\n\tLog10(20k/100)=" << log_ratio << "\n\tFinal freq=" << result;
+        std::cout << "X @ offset " << x_offset << " to frquency:\n\tLog10(20k/100)=" << log_ratio << "\n\tFinal freq=" << result << "\n";
         return result;
     }
 
