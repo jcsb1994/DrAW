@@ -33,11 +33,12 @@ public:
 
         g.setColour(juce::Colours::cyan);
         auto graphBounds = getGraphBounds();
-        std::cout << dots.size();
+
         for (size_t i = 0; i < dots.size(); i++)
         {
             float x = frequencyToX(dots[i].first, graphBounds);
             float y = amplitudeToY(dots[i].second, graphBounds);
+            std::cout << x << "Hz for left of line\n";
 
             if (i > 0) {
                 float prevX = frequencyToX(dots[i - 1].first, graphBounds);
@@ -118,22 +119,17 @@ public:
         if (clickedDotIndex != -1)
         {
             // Start dragging this dot
-            std::cout << "A";
             draggedDotIndex = clickedDotIndex;
-            std::cout << "B";
             return;
         }
-        std::cout << "C";
         // Otherwise, split the closest line
         float freq = xToFrequency(mouseX, graphBounds);
         float amp = yToAmplitude(mouseY, graphBounds);
-        std::cout << "D";
 
         // Find the position to insert based on the first value (freq)
         // Since we work with a vector of pairs, we need a comparator fct (as a lambda)
         auto it = std::lower_bound(dots.begin(), dots.end(), freq,
             [](const std::pair<float, float>& dot, float value) {
-                std::cout << "is it " << dot.first << "\n";
                 return dot.first < value;
             }
         );
@@ -142,19 +138,16 @@ public:
 
         if (it == dots.end()) {
             index = dots.size() - 1;
-            std::cout << index << " at end\n";
         } else {
             index = std::distance(dots.begin(), it);
         }
 
         // Calculate index
-        std::cout << "Idx " << index << "\n";
 
         dots.insert(dots.begin() + index, { freq, amp });
 
         for (size_t i = 0; i < dots.size(); i++) {
             std::cout << dots[i].first << "Hz, ";
-
         }
 
         std::cout << (index + 1) << "th dot added\n";
@@ -189,6 +182,7 @@ public:
 private:
 
     const std::pair<float, float> graph_f_bounds{ 100.0f, 20000.0f };
+    const float log_ratio = std::log10(graph_f_bounds.second / graph_f_bounds.first); // ~2.3
 
     std::vector<std::pair<float, float>> dots; // Dots: frequency (Hz), amplitude (dB)
     int draggedDotIndex = -1;
@@ -198,7 +192,9 @@ private:
     // Map frequency (log scale) to X position
     float frequencyToX(float freq, juce::Rectangle<int> bounds) const
     {
-        float log_ratio = std::log10(graph_f_bounds.second / graph_f_bounds.first);
+        if (freq == 0) {
+            return 0; // log10(0) is invalid
+        }
         return bounds.getX() + bounds.getWidth() * std::log10(freq / graph_f_bounds.first) / log_ratio;
     }
 
@@ -211,7 +207,6 @@ private:
     // Map X position to frequency
     float xToFrequency(float x, juce::Rectangle<int> bounds) const
     {
-        float log_ratio = std::log10(graph_f_bounds.second / graph_f_bounds.first);
         float x_offset = x - bounds.getX();
         float result =  graph_f_bounds.first * std::pow(10.0f, x_offset / bounds.getWidth() * log_ratio);
         std::cout << "X @ offset " << x_offset << " to frquency:\n\tLog10(20k/100)=" << log_ratio << "\n\tFinal freq=" << result << "\n";
