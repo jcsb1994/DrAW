@@ -126,6 +126,14 @@ public:
         float freq = xToFrequency(mouseX, graphBounds);
         float amp = yToAmplitude(mouseY, graphBounds);
 
+        // TODO: check bounds in xy
+        if (freq < 100.0f ||
+            freq > 20000.0f ||
+            amp < -24.0f ||
+            amp > 24.0f ) {
+                return;
+            }
+
         // Find the position to insert based on the first value (freq)
         // Since we work with a vector of pairs, we need a comparator fct (as a lambda)
         auto it = std::lower_bound(dots.begin(), dots.end(), freq,
@@ -151,6 +159,8 @@ public:
         }
 
         std::cout << (index + 1) << "th dot added\n";
+
+        draggedDotIndex = index;
 
         repaint();
     }
