@@ -51,10 +51,15 @@ void FrequencyGraph::createStaticGraph()
     g.setColour(juce::Colours::white);
     g.drawRect(graphBounds);
 
+
+    float subX = graphBounds.getWidth() * 0.05;
+    g.drawVerticalLine((int)subX, graphBounds.getY(), graphBounds.getBottom());
+    // FIXME: 100-20k must take 95% of the graph, adapt fretox()
     // Draw X-axis (logarithmic frequency scale)
     for (float freq = 100.0f; freq <= 10000.0f; freq *= 10.0f)
     {
         float x = frequencyToX(freq, graphBounds);
+
 
         // Draw main vertical line
         g.drawVerticalLine((int)x, graphBounds.getY(), graphBounds.getBottom());
@@ -65,7 +70,7 @@ void FrequencyGraph::createStaticGraph()
         for (int i = 2; i < 10; ++i)
         {
             float subFreq = freq * i;
-            if (subFreq > 20000.0f) break; // Prevent exceeding 20 kHz
+            if (subFreq > _freq_bounds.second) break; // Prevent exceeding max freq
 
             float subX = frequencyToX(subFreq, graphBounds);
             g.drawVerticalLine((int)subX, graphBounds.getY(), graphBounds.getBottom());
@@ -87,7 +92,16 @@ void FrequencyGraph::createStaticGraph()
 
 juce::Rectangle<int> FrequencyGraph::getGraphBounds() const
 {
-    return getLocalBounds().reduced(40); // Trims the component bounds on all sides, très utile pour encadrés
+
+    auto local = getLocalBounds();
+    auto w = local.getWidth() * 0.05f;
+    auto h = local.getHeight() * 0.05f;
+
+    local = local.reduced(w, h);
+
+    local.removeFromBottom(h); // Remove twice from bottom
+
+    return local;
 }
 
 
@@ -112,8 +126,8 @@ void FrequencyGraph::mouseDown(const juce::MouseEvent& event)
     float amp = yToAmplitude(mouseY, graphBounds);
 
     // TODO: check bounds in xy
-    if (freq < 100.0f ||
-        freq > 20000.0f ||
+    if (freq < _freq_bounds.first ||
+        freq > _freq_bounds.second ||
         amp < -24.0f ||
         amp > 24.0f ) {
             return;
@@ -163,7 +177,7 @@ void FrequencyGraph::mouseDrag(const juce::MouseEvent& event)
         float amp = yToAmplitude(event.position.y, graphBounds);
 
         // Clamp values to valid ranges
-        freq = juce::jlimit(100.0f, 20000.0f, freq);
+        freq = juce::jlimit(_freq_bounds.first, _freq_bounds.second, freq);
         amp = juce::jlimit(-24.0f, 24.0f, amp);
 
         _dots[_dragged_dot_idx] = { freq, amp };
