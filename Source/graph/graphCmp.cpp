@@ -172,8 +172,10 @@ void FrequencyGraph::mouseDrag(const juce::MouseEvent& event)
         float freq = xToFrequency(event.position.x, graphBounds);
         float amp = yToAmplitude(event.position.y, graphBounds);
 
-        // Clamp values to valid ranges
-        freq = juce::jlimit(_freq_bounds.first, _freq_bounds.second, freq);
+        // Clamp values to valid ranges (Graph bounds, or adjacent dots)
+        float leftBound = (_dragged_dot_idx > 0) ? _dots[_dragged_dot_idx-1].first : _freq_bounds.first;
+        float rightBound = (_dragged_dot_idx < _dots.size() - 1) ? _dots[_dragged_dot_idx+1].first : _freq_bounds.second;
+        freq = juce::jlimit(leftBound, rightBound, freq);
         amp = juce::jlimit(-24.0f, 24.0f, amp);
 
         _dots[_dragged_dot_idx] = { freq, amp };
