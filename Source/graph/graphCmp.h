@@ -32,7 +32,7 @@ public:
 private:
 
     // Drawing
-    const std::pair<float, float> _freq_bounds{ 1.0f, 20000.0f }; // TODO: 0 - 20k
+    const std::pair<float, float> _freq_bounds{ 10.0f, 20000.0f }; // TODO: 0 - 20k
     const std::pair<float, float> _plot_x_bounds{ 0.05f, 100.0f }; // Leave 5% for Y axis
     const float _log_ratio = std::log10(_freq_bounds.second / _freq_bounds.first); // ~2.3
     juce::Image _staticGraph;

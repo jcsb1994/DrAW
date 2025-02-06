@@ -52,11 +52,7 @@ void FrequencyGraph::createStaticGraph()
     g.drawRect(graphBounds);
 
 
-    float subX = graphBounds.getWidth() * 0.05;
-    g.drawVerticalLine((int)subX, graphBounds.getY(), graphBounds.getBottom());
-    // FIXME: 100-20k must take 95% of the graph, adapt fretox()
-    // Draw X-axis (logarithmic frequency scale)
-    for (float freq = 100.0f; freq <= 10000.0f; freq *= 10.0f)
+    for (float freq = 10.0f; freq <= 10000.0f; freq *= 10.0f)
     {
         float x = frequencyToX(freq, graphBounds);
 
