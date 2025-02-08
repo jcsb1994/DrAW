@@ -3,6 +3,28 @@
 #include <JuceHeader.h>
 #include <algorithm>
 
+
+struct CurvedLine {
+    juce::Point<float> center;  // Midpoint of the line
+    juce::Point<float> control; // Control point for bending the curve
+
+    CurvedLine(juce::Point<float> start, juce::Point<float> end)
+        : center((start + end) / 2.0f), control((start + end) / 2.0f) {} // Start with straight line
+
+    // Quadratic Bézier curve formula
+    juce::Point<float> getPointOnCurve(float t, juce::Point<float> start, juce::Point<float> end) const {
+        float x = (1 - t) * (1 - t) * start.x + 2 * (1 - t) * t * control.x + t * t * end.x;
+        float y = (1 - t) * (1 - t) * start.y + 2 * (1 - t) * t * control.y + t * t * end.y;
+        return {x, y};
+    }
+
+    void updateCenter()
+    {
+        // Must drag line center along with dot so curve ratio doesnt change when sliding dots
+    }
+};
+
+
 class FrequencyGraph : public juce::Component
 {
 public:
@@ -14,12 +36,15 @@ public:
             {_freq_bounds.first, 0.0f},
             {_freq_bounds.second, 0.0f}
         };
+
+        updateCurvedLines();
     }
 
     void resized() override;
     void paint(juce::Graphics& g) override;
 
     void createStaticGraph();
+    void updateCurvedLines();
 
     juce::Rectangle<int> getGraphBounds() const;
 
@@ -39,6 +64,9 @@ private:
 
     std::vector<std::pair<float, float>> _dots; // Dots: frequency (Hz), amplitude (dB)
     int _dragged_dot_idx = -1;
+
+    std::vector<CurvedLine> _curvedLines;
+    CurvedLine* _draggingLine = nullptr;
 
 
     // Map frequency (log scale) to X position
