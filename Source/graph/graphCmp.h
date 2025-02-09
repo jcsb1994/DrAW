@@ -22,6 +22,7 @@ struct CurvedLine {
     {
         // Must drag line center along with dot so curve ratio doesnt change when sliding dots
     }
+
 };
 
 
@@ -57,8 +58,11 @@ public:
 private:
 
     // Drawing
-    const std::pair<float, float> _freq_bounds{ 10.0f, 20000.0f }; // TODO: 0 - 20k
-    const std::pair<float, float> _plot_x_bounds{ 0.05f, 100.0f }; // Leave 5% for Y axis
+    const std::pair<float, float> _freq_bounds{ 10.0f, 20000.0f };
+    const std::pair<float, float> _amp_bounds{ -24.0f, 24.0f }; //TODO: check if should be - to 0
+    const float _amp_range = _amp_bounds.second - _amp_bounds.first;
+    //getgraphbounds() instead
+    // const std::pair<float, float> _plot_x_bounds{ 0.05f, 100.0f }; // Leave 5% for Y axis
     const float _log_ratio = std::log10(_freq_bounds.second / _freq_bounds.first); // ~2.3
     juce::Image _staticGraph;
 
@@ -81,7 +85,7 @@ private:
     // Map amplitude to Y position
     float amplitudeToY(float amp, juce::Rectangle<int> bounds) const
     {
-        return bounds.getBottom() - (amp + 24.0f) * bounds.getHeight() / 48.0f;
+        return bounds.getBottom() - (amp + _amp_bounds.second) * bounds.getHeight() / _amp_range;
     }
 
     // Map X position to frequency
@@ -96,12 +100,20 @@ private:
     // Map Y position to amplitude
     float yToAmplitude(float y, juce::Rectangle<int> bounds) const
     {
-        return 24.0f - (y - bounds.getY()) * 48.0f / bounds.getHeight();
+        return _amp_bounds.second - (y - bounds.getY()) * _amp_range / bounds.getHeight();
     }
 
     void debug_dot(uint8_t index, float x, float y, float freq) const
     {
         std::cout << "dot " << index << ": " <<  "(" << x << ", " << y << ")" << " " << freq << "Hz\n";
+    }
+
+    void debug_curves()
+    {
+        for (int i = 0; i < _curvedLines.size(); i++) {
+            std::cout << i << " line ctrl " << _curvedLines[i].control.y << "\n";
+        }
+
     }
 
     int getClickedDotIndex(float mouseX, float mouseY, const juce::Rectangle<int>& bounds) const
@@ -110,7 +122,7 @@ private:
         {
             float x = frequencyToX(_dots[i].first, bounds);
             float y = amplitudeToY(_dots[i].second, bounds);
-            debug_dot(i, x, y, _dots[i].first);
+            // debug_dot(i, x, y, _dots[i].first);
             // Check if the mouse click is within the dot's radius
             if (std::hypot(mouseX - x, mouseY - y) <= 5.0f)
                 return static_cast<int>(i);

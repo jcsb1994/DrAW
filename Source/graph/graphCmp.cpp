@@ -20,6 +20,9 @@ void FrequencyGraph::paint(juce::Graphics& g)
     auto graphBounds = getGraphBounds();
 
     juce::Path path;
+
+    std::cout << "lines at start\n";
+    debug_curves();
     for (size_t i = 0; i < _dots.size(); i++)
     {
         float x = frequencyToX(_dots[i].first, graphBounds);
@@ -33,22 +36,18 @@ void FrequencyGraph::paint(juce::Graphics& g)
             juce::Point<float> end(frequencyToX(_dots[i + 1].first, getGraphBounds()),
                                 amplitudeToY(_dots[i + 1].second, getGraphBounds()));
 
-            juce::Rectangle<float> rect(_curvedLines[i].center.getX() - 5, _curvedLines[i].center.getY() - 5, 10, 10);
+            juce::Rectangle<float> rect(_curvedLines[i].center.getX() - 5, _curvedLines[i].control.getY() - 5, 10, 10);
             g.drawEllipse(rect, 3);
             path.startNewSubPath(start);
+            std::cout << i << " loop ctrl " << _curvedLines[i].control.y << "\n";
             path.quadraticTo(_curvedLines[i].control, end);
         }
 
         g.fillEllipse(x - 5, y - 5, 10, 10); // Draw dot
     }
-
-        //     float prevX = frequencyToX(_dots[i - 1].first, graphBounds);
-        //     float prevY = amplitudeToY(_dots[i - 1].second, graphBounds);
-        //     g.drawLine(prevX, prevY, x, y, 2.0f);
-        // }
+    std::cout << "lines at end\n";
+    debug_curves();
     g.strokePath(path, juce::PathStrokeType(2.0f));
-
-
 }
 //==========================
 
@@ -94,7 +93,7 @@ void FrequencyGraph::createStaticGraph()
 
 
     // Draw Y-axis (linear amplitude scale)
-    for (int dB = -24; dB <= 24; dB += 6)
+    for (float dB = _amp_bounds.first; dB <= _amp_bounds.second; dB += 6)
     {
         float y = amplitudeToY((float)dB, graphBounds);
         g.drawHorizontalLine((int)y, graphBounds.getX(), graphBounds.getRight());
@@ -120,11 +119,12 @@ juce::Rectangle<int> FrequencyGraph::getGraphBounds() const
 
 void FrequencyGraph::updateCurvedLines() {
     _curvedLines.clear();
+    auto graphBounds = getGraphBounds();
     for (size_t i = 1; i < _dots.size(); ++i) {
-        juce::Point<float> start(frequencyToX(_dots[i - 1].first, getGraphBounds()),
-                                 amplitudeToY(_dots[i - 1].second, getGraphBounds()));
-        juce::Point<float> end(frequencyToX(_dots[i].first, getGraphBounds()),
-                               amplitudeToY(_dots[i].second, getGraphBounds()));
+        juce::Point<float> start(frequencyToX(_dots[i - 1].first, graphBounds),
+                                 amplitudeToY(_dots[i - 1].second, graphBounds));
+        juce::Point<float> end(frequencyToX(_dots[i].first, graphBounds),
+                               amplitudeToY(_dots[i].second, graphBounds));
 
         _curvedLines.emplace_back(start, end);
     }
@@ -159,8 +159,8 @@ void FrequencyGraph::mouseDown(const juce::MouseEvent& event)
     // TODO: check bounds in xy
     if (freq < _freq_bounds.first ||
         freq > _freq_bounds.second ||
-        amp < -24.0f ||
-        amp > 24.0f ) {
+        amp < _amp_bounds.first ||
+        amp > _amp_bounds.second ) {
             return;
         }
 
@@ -217,7 +217,7 @@ void FrequencyGraph::mouseDrag(const juce::MouseEvent& event)
         float leftBound = (_dragged_dot_idx > 0) ? _dots[_dragged_dot_idx-1].first : _freq_bounds.first;
         float rightBound = (_dragged_dot_idx < _dots.size() - 1) ? _dots[_dragged_dot_idx+1].first : _freq_bounds.second;
         freq = juce::jlimit(leftBound, rightBound, freq);
-        amp = juce::jlimit(-24.0f, 24.0f, amp);
+        amp = juce::jlimit(_amp_bounds.first, _amp_bounds.second, amp);
 
 
         float deltaFreq =  freq - _dots[_dragged_dot_idx].first;
@@ -237,7 +237,22 @@ void FrequencyGraph::mouseDrag(const juce::MouseEvent& event)
         _dots[_dragged_dot_idx] = { freq, amp };
 
     } else if (_draggingLine) {
-        _draggingLine->control.y = event.position.y; // Adjust curvature by dragging
+        // // clamp line ctrl pt
+        auto graphBounds = getGraphBounds();
+
+        // Convert mouse position to frequency and amplitude
+        float amp = yToAmplitude(event.position.y, graphBounds);
+
+        if (amp > _amp_bounds.second) {
+            _draggingLine->control.y = amplitudeToY( _amp_bounds.second, graphBounds);
+        } else if (amp < _amp_bounds.first) {
+            _draggingLine->control.y = amplitudeToY( _amp_bounds.first, graphBounds);
+        } else {
+            _draggingLine->control.y = amplitudeToY( amp, graphBounds);
+        }
+        // auto graphBounds = getGraphBounds();
+        // _draggingLine->control.y = event.position.y;
+        std::cout << "amp " << amp << " event.position.y; "  << event.position.y << "\n";
         // Update center pos TODO:
     }
     repaint();
