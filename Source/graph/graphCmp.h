@@ -3,13 +3,15 @@
 #include <JuceHeader.h>
 #include <algorithm>
 
+#define debug(title, val) std::cout << title << val << "\n"
 
 struct CurvedLine {
     juce::Point<float> center;  // Midpoint of the line
     juce::Point<float> control; // Control point for bending the curve
 
     CurvedLine(juce::Point<float> start, juce::Point<float> end)
-        : center((start + end) / 2.0f), control((start + end) / 2.0f) {} // Start with straight line
+        : center((start + end) / 2.0f), control((start + end) / 2.0f) {
+        } // Start with straight line
 
     // Quadratic Bézier curve formula
     juce::Point<float> getPointOnCurve(float t, juce::Point<float> start, juce::Point<float> end) const {
@@ -38,7 +40,7 @@ public:
             {_freq_bounds.second, 0.0f}
         };
 
-        updateCurvedLines();
+        // Must wait for resizing to lay out dots and lines, XY is unknown
     }
 
     void resized() override;
@@ -46,6 +48,7 @@ public:
 
     void createStaticGraph();
     void updateCurvedLines();
+    void addCurvedLine(unsigned int index);
 
     juce::Rectangle<int> getGraphBounds() const;
 
@@ -79,7 +82,10 @@ private:
         if (freq == 0) {
             return 0; // log10(0) is invalid
         }
-        return bounds.getX() + bounds.getWidth() * std::log10(freq / _freq_bounds.first) / _log_ratio;
+        float logResult = std::log10(freq / _freq_bounds.first);
+        int w = bounds.getWidth();
+        int x = bounds.getX();
+        return x + w * logResult / _log_ratio;
     }
 
     // Map amplitude to Y position
@@ -111,7 +117,9 @@ private:
     void debug_curves()
     {
         for (int i = 0; i < _curvedLines.size(); i++) {
-            std::cout << i << " line ctrl " << _curvedLines[i].control.y << "\n";
+            std::cout << "line " << i << " ctrl/center:\n";
+            std::cout << _curvedLines[i].control.x << ", " << _curvedLines[i].control.y << " and "
+                << _curvedLines[i].center.x << ", " << _curvedLines[i].center.y << "\n";
         }
 
     }
