@@ -268,14 +268,19 @@ void FrequencyGraph::mouseDrag(const juce::MouseEvent& event)
         // update adjacent line centers
         if (_dragged_dot_idx > 0) {
             // update left line
-            _curvedLines[_dragged_dot_idx-1].center.addXY(deltaFreq/2, deltaAmp/2);
+            // re-compute center
+            _curvedLines[_dragged_dot_idx-1].center.x = _dots[_dragged_dot_idx].first - _dots[_dragged_dot_idx-1].first;
+            _curvedLines[_dragged_dot_idx-1].center.y = _dots[_dragged_dot_idx].second - _dots[_dragged_dot_idx-1].second;
+            // _curvedLines[_dragged_dot_idx-1].center.addXY(deltaFreq/2, deltaAmp/2);
 
         }
         if (_dragged_dot_idx < _dots.size() - 1) {
+            _curvedLines[_dragged_dot_idx].center.x = _dots[_dragged_dot_idx+1].first - _dots[_dragged_dot_idx].first;
+            _curvedLines[_dragged_dot_idx].center.y = _dots[_dragged_dot_idx+1].second - _dots[_dragged_dot_idx].second;
             // update right line
-            _curvedLines[_dragged_dot_idx].center.addXY(deltaFreq/2, deltaAmp/2);
+            // re-compute center
+            // _curvedLines[_dragged_dot_idx].center.addXY(deltaFreq/2, deltaAmp/2);
         }
-        updateCurvedLines();
 
         _dots[_dragged_dot_idx] = { freq, amp };
 
@@ -287,12 +292,11 @@ void FrequencyGraph::mouseDrag(const juce::MouseEvent& event)
         float amp = yToAmplitude(event.position.y, graphBounds);
 
         if (amp > _amp_bounds.second) {
-            _draggingLine->control.y = amplitudeToY( _amp_bounds.second, graphBounds);
+            amp =  _amp_bounds.second;
         } else if (amp < _amp_bounds.first) {
-            _draggingLine->control.y = amplitudeToY( _amp_bounds.first, graphBounds);
-        } else {
-            _draggingLine->control.y = amplitudeToY( amp, graphBounds);
+            amp =  _amp_bounds.first;
         }
+        _draggingLine->control.y = amplitudeToY( amp, graphBounds);
         // auto graphBounds = getGraphBounds();
         // _draggingLine->control.y = event.position.y;
         std::cout << "amp " << amp << " event.position.y; "  << event.position.y << "\n";

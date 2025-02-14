@@ -1,4 +1,19 @@
-/* Component that manages a graph with an interactive line */
+/* Component that manages a graph with an interactive line
+
+TODO:
+undo
+box selection of dots, drag multiple, change color on select
+make dots a class with the vector, dragged indexes, lookandfeel
+class DotLookAndFeel : public juce::LookAndFeel_V4 {
+public:
+    void drawDot(juce::Graphics& g, juce::Point<float> position, bool isSelected) {
+        g.setColour(isSelected ? juce::Colours::red : juce::Colours::white);
+        g.fillEllipse(position.x - 5, position.y - 5, 10, 10);
+        g.setColour(juce::Colours::black);
+        g.drawEllipse(position.x - 5, position.y - 5, 10, 10, 2);
+    }
+};
+*/
 
 #include <JuceHeader.h>
 #include <algorithm>
@@ -116,6 +131,7 @@ private:
 
     void debug_curves()
     {
+        return;
         for (int i = 0; i < _curvedLines.size(); i++) {
             std::cout << "line " << i << " ctrl/center:\n";
             std::cout << _curvedLines[i].control.x << ", " << _curvedLines[i].control.y << " and "

@@ -1,0 +1,60 @@
+std::vector<float> generateFrequencyResponse(int fftSize) {
+    std::vector<float> response(fftSize / 2 + 1, 1.0f); // Default to flat response
+
+    for (size_t i = 0; i < _dots.size(); ++i) {
+        float freq = _dots[i].first;  // Frequency in Hz (log scale)
+        float amp = _dots[i].second;  // Amplitude in linear scale
+
+        int index = juce::jlimit(0, fftSize / 2, int(freq / 20000.0f * (fftSize / 2)));
+        response[index] = amp;
+    }
+
+    return response;
+}
+
+
+
+std::vector<float> generateImpulseResponse(int fftSize) {
+    auto freqResponse = generateFrequencyResponse(fftSize);
+
+    // Convert to complex format
+    juce::dsp::FFT fft(log2(fftSize));
+    std::vector<std::complex<float>> complexData(fftSize, {0.0f, 0.0f});
+
+    for (size_t i = 0; i < freqResponse.size(); ++i) {
+        complexData[i] = { freqResponse[i], 0.0f };
+    }
+
+    // Perform inverse FFT
+    std::vector<float> impulseResponse(fftSize);
+    fft.performRealOnlyInverseTransform(impulseResponse.data());
+
+    return impulseResponse;
+}
+
+
+void saveAsWav(const std::vector<float>& impulseResponse, const juce::File& file) {
+    juce::WavAudioFormat format;
+    std::unique_ptr<juce::AudioFormatWriter> writer(format.createWriterFor(
+        file.createOutputStream().release(),
+        44100, // Sample rate
+        1,     // Mono
+        16,    // Bit depth
+        {},    // Metadata
+        0
+    ));
+
+    if (writer) {
+        writer->writeFromFloatArrays(&impulseResponse.data(), 1, impulseResponse.size());
+    }
+}
+
+
+
+// TO EXPORT:
+
+void exportGraphAsWav(const juce::File& file) {
+    int fftSize = 1024; // Adjust for accuracy
+    auto impulseResponse = generateImpulseResponse(fftSize);
+    saveAsWav(impulseResponse, file);
+}
