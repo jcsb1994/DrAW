@@ -12,11 +12,7 @@ public:
     }
 };
 
-enum  {
-
-};
-
-struct GraphDot
+struct FreqDot
 {
     juce::Point<float> pt;
     // path and mode
@@ -28,16 +24,85 @@ struct GraphDot
     TODO: add square */
     float control;
 
-    GraphDot(float x, float y) : pt(x, y), linemode(lineMode::bezier) {}
+    FreqDot(float freq, float amp) : pt(freq, amp), linemode(lineMode::bezier) {}
 };
 
 
+
+
+class FreqBoundMap
+{
+private:
+    juce::Rectangle<float> _xyBounds; // Bound to change @ resize
+
+    const std::pair<float, float> freqBounds;
+    const std::pair<float, float> ampBounds;
+public:
+    FreqBoundMap(const std::pair<float, float> freqBounds, const std::pair<float, float> ampBounds) :
+        _xyBounds(xyBounds), _freqBounds(freqBounds)
+    {
+        std::cout << "Bound map: "  << minAmplitude() << maxAmplitude() << minFrequency() << maxFrequency() << minY() << maxY() << minX() << maxX();
+    }
+
+    inline float minAmplitude() const { return _freqBounds.getY() - _freqBounds.getHeight(); }
+    inline float maxAmplitude() const { return _freqBounds.getY(); }
+    inline float minFrequency() const { return _freqBounds.getX(); }
+    inline float maxFrequency() const { return _freqBounds.getX() + _freqBounds.getWidth();; }
+
+    inline float minY() const { return _xyBounds.getY() - _xyBounds.getHeight(); }
+    inline float maxY() const { return _xyBounds.getY(); }
+    inline float minX() const { return _xyBounds.getX(); }
+    inline float maxX() const { return _xyBounds.getX() + _xyBounds.getWidth(); }
+
+/*
+
+    // Map frequency (log scale) to X position
+    float frequencyToX(float freq, juce::Rectangle<int> bounds) const
+    {
+        if (freq == 0) {
+            return 0; // log10(0) is invalid
+        }
+        float logResult = std::log10(freq / _freq_bounds.first);
+        int w = bounds.getWidth();
+        int x = bounds.getX();
+        return x + w * logResult / _log_ratio;
+    }
+
+    // Map amplitude to Y position
+    float amplitudeToY(float amp, juce::Rectangle<int> bounds) const
+    {
+        return bounds.getBottom() - (amp + _amp_bounds.second) * bounds.getHeight() / _amp_range;
+    }
+
+    // Map X position to frequency
+    float xToFrequency(float x, juce::Rectangle<int> bounds) const
+    {
+        float x_offset = x - bounds.getX();
+        float result =  _freq_bounds.first * std::pow(10.0f, x_offset / bounds.getWidth() * _log_ratio);
+        std::cout << "X @ offset " << x_offset << " to frquency:\n\tLog10(20k/100)=" << _log_ratio << "\n\tFinal freq=" << result << "\n";
+        return result;
+    }
+
+    // Map Y position to amplitude
+    float yToAmplitude(float y, juce::Rectangle<int> bounds) const
+    {
+        return _amp_bounds.second - (y - bounds.getY()) * _amp_range / bounds.getHeight();
+    }
+ */
+};
+
+
+
+
+
+
+
 /*! \brief Doesnt know about X/Y/freq/amp conversions, about freq and amp max */
-class GraphCurve
+class FreqCurve
 {
 public:
-    GraphCurve(/* args */) {}
-    ~GraphCurve() {}
+    FreqCurve(FreqBoundMap& boundMap) : _boundmap(boundMap) {}
+    ~FreqCurve() {}
 
     void drawCurve(juce::Graphics& g)
     {
@@ -58,27 +123,45 @@ public:
                 float ctrlX = _dots[i].pt.x - _dots[i-1].pt.x;
                 float ctrlY = (_dots[i].pt.y - _dots[i-1].pt.y) + _dots[i].control;
                 juce::Point<float> ctrlPoint(ctrlX, ctrlY);
+                // FIXME: control doit etre perpendiculaire a slope, pas vertical
+
                 path.quadraticTo(ctrlPoint, _dots[i].pt); // TODO: change fct depending linemode
             }
         }
     }
 
+
+    /*! \brief Return a const ref to the curve points (read-only) */
+    const std::vector<FreqDot>& getDots() const { return _dots; }
+
+
     void addDot(juce::Point<float> point)
     {
         // Find the correct position in _dots to maintain sorted order by X
         auto it = std::lower_bound(_dots.begin(), _dots.end(), point,
-            [](const GraphDot& dot, const juce::Point<float>& value) {
+            [](const FreqDot& dot, const juce::Point<float>& value) {
                 return dot.pt.x < value.x;
             });
 
-        // Insert new GraphDot at the found position
-        _dots.insert(it, GraphDot(point.x, point.y));
+        // Insert new FreqDot at the found position
+        _dots.insert(it, FreqDot(point.x, point.y));
+        std::cout << "Added dot (" << point.x << "," << point.y << ") to curve\n";
     }
 
+    // bool selectPoint(float selectedFreq, float selectedAmp)
+    // {
+    //     for (size_t i = 0; i < _dots.size(); ++i) {
+
+    //         if (std::hypot(selectedFreq - _dots[i].pt.x, selectedAmp - _dots[i].pt.y) <= 5.0f) {
+    //             return static_cast<int>(i);
+    //         }
+    //     }
+    //     return -1; // No dot clicked
+    // }
     // 2 functions for selection, since we know X increases for each dot,
     // when dragging, we can check 1st non selected dot to see if Y is in box
     // in caller: when ctrl is down and dragging, make rect with origin of drag and call this
-    void select(juce::Rectangle<float> selectionBox)
+    void selectBox(juce::Rectangle<float> selectionBox)
     {
         // One day optimize with keeping already selected until selection is released
         // Means checking which direction the rect increased
@@ -97,10 +180,14 @@ public:
     {
         _selected_idxs.clear();
     }
+    // delete() // selected
+    // delete(Rect) // in box
+    // drag(x, y)
 
 private:
 
-    std::vector<GraphDot> _dots; // Vector of dots (juce points)
+    std::vector<FreqDot> _dots; // Vector of dots (juce points)
     DotLnF _lnf; // Manages visuaks for the dots set
+    FreqBoundMap& _boundMap;
     std::vector<int> _selected_idxs;
 };

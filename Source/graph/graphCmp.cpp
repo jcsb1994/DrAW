@@ -6,6 +6,8 @@ void FrequencyGraph::resized()
     // Recreate static graph image when the component is resized
     createStaticGraph();
 
+    // Remap curve XY
+
 }
 
 void FrequencyGraph::paint(juce::Graphics& g)
@@ -23,7 +25,7 @@ void FrequencyGraph::paint(juce::Graphics& g)
     juce::Path path;
 
     std::cout << "lines at start\n";
-    debug_curves();
+    // debug_curves();
     for (size_t i = 0; i < _dots.size(); i++)
     {
         float x = frequencyToX(_dots[i].first, graphBounds);
@@ -168,79 +170,34 @@ void FrequencyGraph::mouseDown(const juce::MouseEvent& event)
 
     // Check if we clicked on an existing dot
     int clickedDotIndex = getClickedDotIndex(mouseX, mouseY, graphBounds);
-    if (clickedDotIndex != -1)
-    {
+    int clickedCurveIndex;
+
+    if (clickedDotIndex != -1) {
         // Start dragging this dot
         _dragged_dot_idx = clickedDotIndex;
-        return;
     } else {
-        for (auto& line : _curvedLines) {
-            if (event.getPosition().toFloat().getDistanceFrom(line.center) < 10.0f) {
-                // Start dragging this line
-                _draggingLine = &line;
-                return;
-            }
+        clickedCurveIndex = getClickedLineIndex(mouseX, mouseY, graphBounds);
+        if (clickedCurveIndex != -1) {
+            _dragged_line_idx = clickedCurveIndex;
         }
     }
+
     // Otherwise, split the closest line
-    float freq = xToFrequency(mouseX, graphBounds);
-    float amp = yToAmplitude(mouseY, graphBounds);
+    juce::Point<float> newDot;
+    newDot.x = xToFrequency(mouseX, graphBounds);
+    newDot.y = yToAmplitude(mouseY, graphBounds);
 
     // TODO: check bounds in xy
-    if (freq < _freq_bounds.first ||
-        freq > _freq_bounds.second ||
-        amp < _amp_bounds.first ||
-        amp > _amp_bounds.second ) {
+    if (newDot.x < _freq_bounds.first ||
+        newDot.x > _freq_bounds.second ||
+        newDot.y < _amp_bounds.first ||
+        newDot.y > _amp_bounds.second ) {
             return;
         }
 
-    // Find the position to insert based on the first value (freq)
-    // Since we work with a vector of pairs, we need a comparator fct (as a lambda)
-    auto it = std::lower_bound(_dots.begin(), _dots.end(), freq,
-        [](const std::pair<float, float>& dot, float value) {
-            return dot.first < value;
-        }
-    );
-
-    size_t index;
-
-    if (it == _dots.end()) {
-        index = _dots.size() - 1;
-    } else {
-        index = std::distance(_dots.begin(), it);
-    }
-
-    // Calculate index
-
-    _dots.insert(_dots.begin() + index, { freq, amp });
-    _dragged_dot_idx = index;
-
-
-    // Push new line
-    // float oldCtrl =  _curvedLines[index-1].control.y;
-    addCurvedLine(index);
-    // juce::Point<float> start(frequencyToX(_dots[index].first, graphBounds),
-    // amplitudeToY(_dots[index].second, graphBounds));
-    // juce::Point<float> end(frequencyToX(_dots[index+1].first, graphBounds),
-    // amplitudeToY(_dots[index+1].second, graphBounds));
-    // CurvedLine newline(start, end);
-    // _curvedLines.insert(_curvedLines.begin() + index, newline);
-
-
-
-
-    // Generate new lines
-    // updateCurvedLines();
+    _curve.addDot(newDot);
 
     repaint();
-
-
-
-    // Debug
-    for (size_t i = 0; i < _dots.size(); i++) {
-        std::cout << _dots[i].first << "Hz, ";
-    }
-    std::cout << (index + 1) << "th dot added\n";
 
 }
 

@@ -18,6 +18,8 @@ public:
 #include <JuceHeader.h>
 #include <algorithm>
 
+#include "GraphCurve.h"
+
 #define debug(title, val) std::cout << title << val << "\n"
 
 struct CurvedLine {
@@ -48,6 +50,11 @@ class FrequencyGraph : public juce::Component
 public:
     FrequencyGraph()
     {
+        juce::Point<float> startPt(_freq_bounds.first, 0.0f);
+        juce::Point<float> endPt(_freq_bounds.second, 0.0f);
+        _curve.addDot(startPt);
+        _curve.addDot(endPt);
+
         // Initialize _dots: frequency (Hz), amplitude (dB)
 
         _dots = {
@@ -75,6 +82,13 @@ public:
 
 private:
 
+
+    FreqBoundMap myMap( // FIXME: pairs seems more intuitive in the end
+        juce::Rectangle<float>(0.0f, 100.0f, 200.0f, 300.0f), // xyBounds
+        juce::Rectangle<float>(10, 400.0f, 500.0f, 600.0f)  // freqBounds
+    );
+    FreqCurve _curve;
+
     // Drawing
     const std::pair<float, float> _freq_bounds{ 10.0f, 20000.0f };
     const std::pair<float, float> _amp_bounds{ -24.0f, 24.0f }; //TODO: check if should be - to 0
@@ -85,7 +99,9 @@ private:
     juce::Image _staticGraph;
 
     std::vector<std::pair<float, float>> _dots; // Dots: frequency (Hz), amplitude (dB)
+    // TODO: those are temp, curve will manage its selected stuff to move all when calling drag()
     int _dragged_dot_idx = -1;
+    int _dragged_line_idx = -1;
 
     std::vector<CurvedLine> _curvedLines;
     CurvedLine* _draggingLine = nullptr;
@@ -142,16 +158,36 @@ private:
 
     int getClickedDotIndex(float mouseX, float mouseY, const juce::Rectangle<int>& bounds) const
     {
-        for (size_t i = 0; i < _dots.size(); ++i)
+        auto dots = _curve.getDots();
+
+        for (size_t i = 0; i < dots.size(); ++i)
         {
-            float x = frequencyToX(_dots[i].first, bounds);
-            float y = amplitudeToY(_dots[i].second, bounds);
+            float x = frequencyToX(dots[i].pt.x, bounds);
+            float y = amplitudeToY(dots[i].pt.y, bounds);
             // debug_dot(i, x, y, _dots[i].first);
             // Check if the mouse click is within the dot's radius
             if (std::hypot(mouseX - x, mouseY - y) <= 5.0f)
                 return static_cast<int>(i);
         }
         return -1; // No dot clicked
+    }
+
+    int getClickedLineIndex(float mouseX, float mouseY, const juce::Rectangle<int>& bounds) const
+    {
+        auto dots = _curve.getDots();
+
+        for (size_t i = 0; i < dots.size() - 1; ++i) {
+
+            float lineX = dots[i+1].pt.x - dots[i].pt.x;
+            float lineY = dots[i+1].pt.y - dots[i].pt.y;
+
+            float x = frequencyToX(lineX, bounds);
+            float y = amplitudeToY(lineY, bounds);
+
+            if (std::hypot(mouseX - x, mouseY - y) <= 5.0f)
+                return static_cast<int>(i);
+        }
+        return -1;
     }
 
     size_t findClosestLineSegment(float freq, float amp, const juce::Rectangle<int>& bounds) const
