@@ -48,8 +48,12 @@ struct CurvedLine {
 class FrequencyGraph : public juce::Component
 {
 public:
-    FrequencyGraph()
+    FrequencyGraph() :
+        myMap(FreqBoundMap({ 10.0f, 20000.0f }, { -24.0f, 24.0f })),
+        _curve(FreqCurve(myMap))
+
     {
+
         juce::Point<float> startPt(_freq_bounds.first, 0.0f);
         juce::Point<float> endPt(_freq_bounds.second, 0.0f);
         _curve.addDot(startPt);
@@ -83,26 +87,26 @@ public:
 private:
 
 
-    FreqBoundMap myMap( // FIXME: pairs seems more intuitive in the end
-        juce::Rectangle<float>(0.0f, 100.0f, 200.0f, 300.0f), // xyBounds
-        juce::Rectangle<float>(10, 400.0f, 500.0f, 600.0f)  // freqBounds
-    );
-    FreqCurve _curve;
-
-    // Drawing
     const std::pair<float, float> _freq_bounds{ 10.0f, 20000.0f };
     const std::pair<float, float> _amp_bounds{ -24.0f, 24.0f }; //TODO: check if should be - to 0
+
+    FreqBoundMap myMap;
+
+    FreqCurve _curve;
+
+
+    // Drawing TODO: remove
     const float _amp_range = _amp_bounds.second - _amp_bounds.first;
     //getgraphbounds() instead
     // const std::pair<float, float> _plot_x_bounds{ 0.05f, 100.0f }; // Leave 5% for Y axis
     const float _log_ratio = std::log10(_freq_bounds.second / _freq_bounds.first); // ~2.3
     juce::Image _staticGraph;
-
     std::vector<std::pair<float, float>> _dots; // Dots: frequency (Hz), amplitude (dB)
+
+
     // TODO: those are temp, curve will manage its selected stuff to move all when calling drag()
     int _dragged_dot_idx = -1;
     int _dragged_line_idx = -1;
-
     std::vector<CurvedLine> _curvedLines;
     CurvedLine* _draggingLine = nullptr;
 

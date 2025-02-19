@@ -35,26 +35,31 @@ class FreqBoundMap
 private:
     juce::Rectangle<float> _xyBounds; // Bound to change @ resize
 
-    const std::pair<float, float> freqBounds;
-    const std::pair<float, float> ampBounds;
+    // Note: These could also have been a rectangle
+    const std::pair<float, float> _freqBounds;
+    const std::pair<float, float> _ampBounds;
+    const float _ampWidth;
+    const float _freqLogRange; // logarithmic range of frequencies
 public:
     FreqBoundMap(const std::pair<float, float> freqBounds, const std::pair<float, float> ampBounds) :
-        _xyBounds(xyBounds), _freqBounds(freqBounds)
+        _ampBounds(ampBounds), _freqBounds(freqBounds),
+        _ampWidth(ampBounds.second - ampBounds.first),
+        _freqLogRange(std::log10(_freqBounds.second / _freqBounds.first))
     {
         std::cout << "Bound map: "  << minAmplitude() << maxAmplitude() << minFrequency() << maxFrequency() << minY() << maxY() << minX() << maxX();
     }
 
-    inline float minAmplitude() const { return _freqBounds.getY() - _freqBounds.getHeight(); }
-    inline float maxAmplitude() const { return _freqBounds.getY(); }
-    inline float minFrequency() const { return _freqBounds.getX(); }
-    inline float maxFrequency() const { return _freqBounds.getX() + _freqBounds.getWidth();; }
+    inline float minAmplitude() const { return _ampBounds.first; }
+    inline float maxAmplitude() const { return _ampBounds.second; }
+    inline float minFrequency() const { return _freqBounds.first; }
+    inline float maxFrequency() const { return _freqBounds.second; }
 
     inline float minY() const { return _xyBounds.getY() - _xyBounds.getHeight(); }
     inline float maxY() const { return _xyBounds.getY(); }
     inline float minX() const { return _xyBounds.getX(); }
     inline float maxX() const { return _xyBounds.getX() + _xyBounds.getWidth(); }
 
-/*
+
 
     // Map frequency (log scale) to X position
     float frequencyToX(float freq, juce::Rectangle<int> bounds) const
@@ -62,33 +67,33 @@ public:
         if (freq == 0) {
             return 0; // log10(0) is invalid
         }
-        float logResult = std::log10(freq / _freq_bounds.first);
+        float logResult = std::log10(freq / minFrequency());
         int w = bounds.getWidth();
         int x = bounds.getX();
-        return x + w * logResult / _log_ratio;
+        return x + w * logResult / _freqLogRange;
     }
 
     // Map amplitude to Y position
     float amplitudeToY(float amp, juce::Rectangle<int> bounds) const
     {
-        return bounds.getBottom() - (amp + _amp_bounds.second) * bounds.getHeight() / _amp_range;
+        return bounds.getBottom() - (amp + maxAmplitude()) * bounds.getHeight() / _ampWidth;
     }
 
     // Map X position to frequency
     float xToFrequency(float x, juce::Rectangle<int> bounds) const
     {
         float x_offset = x - bounds.getX();
-        float result =  _freq_bounds.first * std::pow(10.0f, x_offset / bounds.getWidth() * _log_ratio);
-        std::cout << "X @ offset " << x_offset << " to frquency:\n\tLog10(20k/100)=" << _log_ratio << "\n\tFinal freq=" << result << "\n";
+        float result =  minFrequency() * std::pow(10.0f, x_offset / bounds.getWidth() * _freqLogRange);
+        std::cout << "X @ offset " << x_offset << " to frquency:\n\tLog10(20k/100)=" << _freqLogRange << "\n\tFinal freq=" << result << "\n";
         return result;
     }
 
     // Map Y position to amplitude
     float yToAmplitude(float y, juce::Rectangle<int> bounds) const
     {
-        return _amp_bounds.second - (y - bounds.getY()) * _amp_range / bounds.getHeight();
+        return maxAmplitude() - (y - bounds.getY()) * _ampWidth / bounds.getHeight();
     }
- */
+
 };
 
 
@@ -101,7 +106,7 @@ public:
 class FreqCurve
 {
 public:
-    FreqCurve(FreqBoundMap& boundMap) : _boundmap(boundMap) {}
+    FreqCurve(FreqBoundMap& boundMap) : _boundMap(boundMap) {}
     ~FreqCurve() {}
 
     void drawCurve(juce::Graphics& g)
