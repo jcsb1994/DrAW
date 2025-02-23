@@ -49,6 +49,8 @@ void FrequencyGraph::paint(juce::Graphics& g)
     std::cout << "lines at end\n";
     debug_curves();
     g.strokePath(path, juce::PathStrokeType(2.0f));
+
+    paint2(g);
 }
 //==========================
 
@@ -193,6 +195,8 @@ void FrequencyGraph::mouseDown(const juce::MouseEvent& event)
         amp > _amp_bounds.second ) {
             return;
         }
+
+    addDot(freq, amp);
 
     // Find the position to insert based on the first value (freq)
     // Since we work with a vector of pairs, we need a comparator fct (as a lambda)

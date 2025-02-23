@@ -5,6 +5,49 @@
 
 #define debug(title, val) std::cout << title << val << "\n"
 
+
+
+
+
+class DotLnF : public juce::LookAndFeel_V4 {
+    static constexpr int dotRadius = 5;
+public:
+    void drawDot(juce::Graphics& g, float x, float y, bool isSelected) {
+        g.setColour(isSelected ? juce::Colours::red : juce::Colours::yellow);
+        g.fillEllipse(x - dotRadius, y - dotRadius, (dotRadius*2), (dotRadius*2));
+        g.setColour(juce::Colours::black);
+        g.drawEllipse(x - dotRadius, y - dotRadius, (dotRadius*2), (dotRadius*2), 2);
+    }
+    void drawLine(juce::Graphics& g, juce::Path& path) {
+        g.setColour(juce::Colours::yellow);
+        g.strokePath(path, juce::PathStrokeType(3.0f));
+    }
+
+};
+
+
+
+struct FreqDot
+{
+    juce::Point<float> pt;
+    // path and mode
+    enum class lineMode { bezier, stair, sine };
+    lineMode linemode;
+    /*! \note
+    bezier: sets ctrl point
+    stair,sine: nb of cycles
+    TODO: add square */
+    float control;
+
+    FreqDot(float freq, float amp) : pt(freq, amp), linemode(lineMode::bezier) { control = 0; }
+};
+
+
+
+
+
+
+
 struct CurvedLine {
     juce::Point<float> center;  // Midpoint of the line
     juce::Point<float> control; // Control point for bending the curve
@@ -40,7 +83,10 @@ public:
             {_freq_bounds.second, 0.0f}
         };
 
-        // Must wait for resizing to lay out dots and lines, XY is unknown
+        addDot(_freq_bounds.first, 0.0f);
+        addDot(_freq_bounds.second, 0.0f);
+
+        // Must wait for resizing to paint, XY is unknown
     }
 
     void resized() override;
@@ -74,6 +120,10 @@ private:
 
     std::vector<CurvedLine> _curvedLines;
     CurvedLine* _draggingLine = nullptr;
+
+    std::vector<FreqDot> _dots2; // Vector of dots (juce points)
+    DotLnF _lnf; // Manages visuaks for the dots set
+    std::vector<int> _selected_idxs;
 
 
     // Map frequency (log scale) to X position
@@ -178,6 +228,79 @@ private:
 
         // Return the distance from the point to the projection
         return p.getDistanceFrom(projection);
+    }
+
+    void addDot(float x, float y)
+    {
+        juce::Point<float> point(x, y);
+        addDot(point);
+    }
+
+    void addDot(juce::Point<float>& point)
+    {
+        // Find the correct position in _dots to maintain sorted order by X
+        auto it = std::lower_bound(_dots2.begin(), _dots2.end(), point,
+            [](const FreqDot& dot, const juce::Point<float>& value) {
+                return dot.pt.x < value.x;
+            });
+
+        // Insert new FreqDot at the found position
+        _dots2.insert(it, FreqDot(point.x, point.y));
+        printDot("New", point);
+    }
+
+    void printDot(juce::String name, juce::Point<float> point)
+    {
+        std::cout << name << " dot: (" << point.x << "," << point.y << ")\n";
+    }
+    void printDot(juce::String name, float x, float y)
+    {
+        std::cout << name << " dot: (" << x << "," << y << ")\n";
+    }
+
+
+    void paint2(juce::Graphics& g)
+    {
+        auto selected_it = _selected_idxs.begin();
+        auto selected_end = _selected_idxs.end();
+        juce::Path path;
+        auto bounds = getGraphBounds(); // Note: getlocalbounds doesnt work.. why?
+
+        for (int i = 0; i < _dots2.size(); i++) {
+            bool selected = (selected_it != selected_end && i == *selected_it);
+            float x = frequencyToX(_dots2[i].pt.x, bounds);
+            float y = amplitudeToY(_dots2[i].pt.y, bounds);
+            _lnf.drawDot(g, x, y, selected);
+
+            if (selected) {
+                selected_it++; // Move to the next selected index
+            }
+
+            if (i > 0) {
+                float lastX = frequencyToX(_dots2[i-1].pt.x, bounds);
+                float lastY = amplitudeToY(_dots2[i-1].pt.y, bounds);
+                juce::Point<float> start(lastX, lastY);
+                juce::Point<float> end(x, y);
+
+                path.startNewSubPath(start);
+                float ctrlX = (x + lastX) / 2;
+                float ctrlY = (y + lastY) / 2;// + _dots2[i].control;
+                juce::Point<float> ctrlPoint(ctrlX, ctrlY);
+                _lnf.drawDot(g, ctrlPoint.x, ctrlPoint.y, true);
+
+                std::cout << "Line " << i << "\n";
+                printDot("Left", start);
+                printDot("Ctrl", ctrlPoint);
+                printDot("Right", end);
+                std::cout << "----\n";
+                // FIXME: control doit etre perpendiculaire a slope, pas vertical
+
+                path.quadraticTo(ctrlPoint, end); // TODO: change fct depending linemode
+                // path.lineTo(_dots2[i].pt);
+            }
+        }
+        _lnf.drawLine(g, path);
+
     }
 
 };
