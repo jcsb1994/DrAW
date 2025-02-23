@@ -89,19 +89,18 @@ public:
         // Must wait for resizing to paint, XY is unknown
     }
 
+    // Display
     void resized() override;
     void paint(juce::Graphics& g) override;
-
     void createStaticGraph();
-    void updateCurvedLines();
-    void addCurvedLine(unsigned int index);
 
-    juce::Rectangle<int> getGraphBounds() const;
+    // Clickable graph region
+    juce::Rectangle<int>    getGraphBounds() const;
+    bool                    isWithinGraphBounds(float x, float y) const;
 
+    // Click
     void mouseDown(const juce::MouseEvent& event) override;
-
     void mouseDrag(const juce::MouseEvent& event) override;
-
     void mouseUp(const juce::MouseEvent&) override;
 
 private:

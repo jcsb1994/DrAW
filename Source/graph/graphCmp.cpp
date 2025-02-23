@@ -32,16 +32,16 @@ void FrequencyGraph::paint(juce::Graphics& g)
 
         if (i < _dots.size() - 1) {
 
-            juce::Point<float> start(frequencyToX(_dots[i].first, getGraphBounds()),
-                                    amplitudeToY(_dots[i].second, getGraphBounds()));
-            juce::Point<float> end(frequencyToX(_dots[i + 1].first, getGraphBounds()),
-                                amplitudeToY(_dots[i + 1].second, getGraphBounds()));
+            // juce::Point<float> start(frequencyToX(_dots[i].first, getGraphBounds()),
+            //                         amplitudeToY(_dots[i].second, getGraphBounds()));
+            // juce::Point<float> end(frequencyToX(_dots[i + 1].first, getGraphBounds()),
+            //                     amplitudeToY(_dots[i + 1].second, getGraphBounds()));
 
-            juce::Rectangle<float> rect(_curvedLines[i].center.getX() - 5, _curvedLines[i].control.getY() - 5, 10, 10);
-            g.drawEllipse(rect, 3);
-            path.startNewSubPath(start);
-            std::cout << i << " loop ctrl " << _curvedLines[i].control.y << "\n";
-            path.quadraticTo(_curvedLines[i].control, end);
+            // juce::Rectangle<float> rect(_curvedLines[i].center.getX() - 5, _curvedLines[i].control.getY() - 5, 10, 10);
+            // g.drawEllipse(rect, 3);
+            // path.startNewSubPath(start);
+            // std::cout << i << " loop ctrl " << _curvedLines[i].control.y << "\n";
+            // path.quadraticTo(_curvedLines[i].control, end);
         }
 
         g.fillEllipse(x - 5, y - 5, 10, 10); // Draw dot
@@ -59,9 +59,9 @@ void FrequencyGraph::createStaticGraph()
     auto bounds = getLocalBounds();
     auto graphBounds = getGraphBounds();
 
-    if (_curvedLines.size() == 0) {
-        addCurvedLine(0); // TODO:  not at the right place, should be somewhere else in init
-    }
+    // if (_curvedLines.size() == 0) {
+    //     addCurvedLine(0); // TODO:  not at the right place, should be somewhere else in init
+    // }
 
     _staticGraph = juce::Image(juce::Image::RGB, bounds.getWidth(), bounds.getHeight(), true);
     juce::Graphics g(_staticGraph);
@@ -108,6 +108,16 @@ void FrequencyGraph::createStaticGraph()
     }
 }
 
+bool FrequencyGraph::isWithinGraphBounds(float x, float y) const
+{
+    auto bounds = getGraphBounds();
+
+    return !(x < bounds.getX() ||
+           x > bounds.getX() + bounds.getWidth() ||
+           y < bounds.getY() ||
+           y > bounds.getY() + bounds.getHeight());
+}
+
 juce::Rectangle<int> FrequencyGraph::getGraphBounds() const
 {
 
@@ -123,48 +133,53 @@ juce::Rectangle<int> FrequencyGraph::getGraphBounds() const
 }
 
 
-void FrequencyGraph::addCurvedLine(unsigned int index) {
-    auto graphBounds = getGraphBounds();
+// void FrequencyGraph::addCurvedLine(unsigned int index) {
+//     auto graphBounds = getGraphBounds();
 
-    // Points for the line: dot at idx + next
-    juce::Point<float> start(frequencyToX(_dots[index].first, graphBounds),
-    amplitudeToY(_dots[index].second, graphBounds));
-    juce::Point<float> end(frequencyToX(_dots[index+1].first, graphBounds),
-    amplitudeToY(_dots[index+1].second, graphBounds));
+//     // Points for the line: dot at idx + next
+//     juce::Point<float> start(frequencyToX(_dots[index].first, graphBounds),
+//     amplitudeToY(_dots[index].second, graphBounds));
+//     juce::Point<float> end(frequencyToX(_dots[index+1].first, graphBounds),
+//     amplitudeToY(_dots[index+1].second, graphBounds));
 
 
-    if (_curvedLines.size() > index) {
-        juce::Point<float> prev(frequencyToX(_dots[index-1].first, graphBounds),
-        amplitudeToY(_dots[index-1].second, graphBounds));
-        _curvedLines.erase(_curvedLines.begin() + index);
-        CurvedLine modifOldLine(prev, start);
-        _curvedLines.insert(_curvedLines.begin() + index, modifOldLine);
-    }
+//     if (_curvedLines.size() > index) {
+//         juce::Point<float> prev(frequencyToX(_dots[index-1].first, graphBounds),
+//         amplitudeToY(_dots[index-1].second, graphBounds));
+//         _curvedLines.erase(_curvedLines.begin() + index);
+//         CurvedLine modifOldLine(prev, start);
+//         _curvedLines.insert(_curvedLines.begin() + index, modifOldLine);
+//     }
 
-    CurvedLine newline(start, end);
-    _curvedLines.insert(_curvedLines.begin() + index, newline);
+//     CurvedLine newline(start, end);
+//     _curvedLines.insert(_curvedLines.begin() + index, newline);
 
-    //     float newCenter = _curvedLines[index-1].center.x
-    //     _curvedLines[index].control
-    // }
-}
-void FrequencyGraph::updateCurvedLines() {
-    // _curvedLines.clear();
-    // auto graphBounds = getGraphBounds();
-    // juce::Point<float> start(frequencyToX(_dots[i - 1].first, graphBounds),
-    //                          amplitudeToY(_dots[i - 1].second, graphBounds));
-    // juce::Point<float> end(frequencyToX(_dots[i].first, graphBounds),
-    //                        amplitudeToY(_dots[i].second, graphBounds));
-    // for (size_t i = 1; i < _dots.size(); ++i) {
+//     //     float newCenter = _curvedLines[index-1].center.x
+//     //     _curvedLines[index].control
+//     // }
+// }
+// void FrequencyGraph::updateCurvedLines() {
+//     // _curvedLines.clear();
+//     // auto graphBounds = getGraphBounds();
+//     // juce::Point<float> start(frequencyToX(_dots[i - 1].first, graphBounds),
+//     //                          amplitudeToY(_dots[i - 1].second, graphBounds));
+//     // juce::Point<float> end(frequencyToX(_dots[i].first, graphBounds),
+//     //                        amplitudeToY(_dots[i].second, graphBounds));
+//     // for (size_t i = 1; i < _dots.size(); ++i) {
 
-    //     _curvedLines.emplace_back(start, end);
-    // }
-}
+//     //     _curvedLines.emplace_back(start, end);
+//     // }
+// }
 void FrequencyGraph::mouseDown(const juce::MouseEvent& event)
 {
-    auto graphBounds = getGraphBounds();
     float mouseX = event.position.x;
     float mouseY = event.position.y;
+
+    if (!isWithinGraphBounds(mouseX, mouseY)) {
+        std::cout << "click out of graph\n";
+        return; }
+
+    auto graphBounds = getGraphBounds();
 
     std::cout << "Click: " << mouseX << ", " << mouseY << "\n";
 
@@ -198,53 +213,15 @@ void FrequencyGraph::mouseDown(const juce::MouseEvent& event)
 
     addDot(freq, amp);
 
-    // Find the position to insert based on the first value (freq)
-    // Since we work with a vector of pairs, we need a comparator fct (as a lambda)
-    auto it = std::lower_bound(_dots.begin(), _dots.end(), freq,
-        [](const std::pair<float, float>& dot, float value) {
-            return dot.first < value;
-        }
-    );
-
-    size_t index;
-
-    if (it == _dots.end()) {
-        index = _dots.size() - 1;
-    } else {
-        index = std::distance(_dots.begin(), it);
-    }
-
-    // Calculate index
-
-    _dots.insert(_dots.begin() + index, { freq, amp });
-    _dragged_dot_idx = index;
-
-
-    // Push new line
-    // float oldCtrl =  _curvedLines[index-1].control.y;
-    addCurvedLine(index);
-    // juce::Point<float> start(frequencyToX(_dots[index].first, graphBounds),
-    // amplitudeToY(_dots[index].second, graphBounds));
-    // juce::Point<float> end(frequencyToX(_dots[index+1].first, graphBounds),
-    // amplitudeToY(_dots[index+1].second, graphBounds));
-    // CurvedLine newline(start, end);
-    // _curvedLines.insert(_curvedLines.begin() + index, newline);
-
-
-
-
-    // Generate new lines
-    // updateCurvedLines();
-
     repaint();
 
 
 
-    // Debug
-    for (size_t i = 0; i < _dots.size(); i++) {
-        std::cout << _dots[i].first << "Hz, ";
-    }
-    std::cout << (index + 1) << "th dot added\n";
+    // // Debug
+    // for (size_t i = 0; i < _dots.size(); i++) {
+    //     std::cout << _dots[i].first << "Hz, ";
+    // }
+    // std::cout << (index + 1) << "th dot added\n";
 
 }
 
@@ -279,7 +256,7 @@ void FrequencyGraph::mouseDrag(const juce::MouseEvent& event)
             // update right line
             _curvedLines[_dragged_dot_idx].center.addXY(deltaFreq/2, deltaAmp/2);
         }
-        updateCurvedLines();
+        // updateCurvedLines();
 
         _dots[_dragged_dot_idx] = { freq, amp };
 
