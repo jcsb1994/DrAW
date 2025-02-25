@@ -78,10 +78,6 @@ public:
     {
         // Initialize _dots: frequency (Hz), amplitude (dB)
 
-        _dots = {
-            {_freq_bounds.first, 0.0f},
-            {_freq_bounds.second, 0.0f}
-        };
 
         addDot(_freq_bounds.first, 0.0f);
         addDot(_freq_bounds.second, 0.0f);
@@ -97,6 +93,8 @@ public:
     // Clickable graph region
     juce::Rectangle<int>    getGraphBounds() const;
     bool                    isWithinGraphBounds(float x, float y) const;
+    bool                    isWithinGraphBounds(float x, float y, juce::Rectangle<int> graphBounds) const;
+
 
     // Click
     void mouseDown(const juce::MouseEvent& event) override;
@@ -104,25 +102,18 @@ public:
     void mouseUp(const juce::MouseEvent&) override;
 
 private:
-
+    enum class graphElement { dot, line };
     // Drawing
     const std::pair<float, float> _freq_bounds{ 10.0f, 20000.0f };
     const std::pair<float, float> _amp_bounds{ -24.0f, 24.0f }; //TODO: check if should be - to 0
     const float _amp_range = _amp_bounds.second - _amp_bounds.first;
-    //getgraphbounds() instead
-    // const std::pair<float, float> _plot_x_bounds{ 0.05f, 100.0f }; // Leave 5% for Y axis
     const float _log_ratio = std::log10(_freq_bounds.second / _freq_bounds.first); // ~2.3
     juce::Image _staticGraph;
 
-    std::vector<std::pair<float, float>> _dots; // Dots: frequency (Hz), amplitude (dB)
-    int _dragged_dot_idx = -1;
-
-    std::vector<CurvedLine> _curvedLines;
-    CurvedLine* _draggingLine = nullptr;
-
-    std::vector<FreqDot> _dots2; // Vector of dots (juce points)
-    DotLnF _lnf; // Manages visuaks for the dots set
-    std::vector<int> _selected_idxs;
+    std::vector<FreqDot> _dots2;
+    DotLnF _lnf; // Manages visuals for the dots set
+    std::vector<int> _selected_idxs; // manages selecting more t`
+    std::pair<std::vector<int>, graphElement> _clicked_items{-1, graphElement::dot};
 
 
     // Map frequency (log scale) to X position
@@ -165,20 +156,67 @@ private:
 
     void debug_curves()
     {
-        for (int i = 0; i < _curvedLines.size(); i++) {
+        for (int i = 0; i < _dots2.size(); i++) {
             std::cout << "line " << i << " ctrl/center:\n";
-            std::cout << _curvedLines[i].control.x << ", " << _curvedLines[i].control.y << " and "
-                << _curvedLines[i].center.x << ", " << _curvedLines[i].center.y << "\n";
         }
 
     }
 
+    inline bool isDotClicked(float mouseX, float mouseY, float ptX, float ptY)
+    {
+        // Check if the mouse click is within the dot's radius
+        return std::hypot(mouseX - ptX, mouseY - ptY) <= 5.0f;
+    }
+
+    bool getLineCenterPoint(int dotIdx, const juce::Rectangle<int>& bounds, juce::Point<float>& linePt)
+    {
+        if (dotIdx == 0 || dotIdx >= _dots2.size()) {
+            return false;
+        }
+
+        float lastX = frequencyToX(_dots2[dotIdx-1].pt.x, bounds);
+        float lastY = amplitudeToY(_dots2[dotIdx-1].pt.y, bounds);
+        float x = frequencyToX(_dots2[dotIdx].pt.x, bounds);
+        float y = amplitudeToY(_dots2[dotIdx].pt.y, bounds);
+        linePt.x = (x + lastX) / 2;
+        linePt.y = (y + lastY) / 2;
+        return true;
+    }
+
+    std::pair<int, graphElement> getClickedItem(float mouseX, float mouseY, const juce::Rectangle<int>& bounds)
+    {
+        for (size_t i = 0; i < _dots2.size(); ++i)
+        {
+            float x = frequencyToX(_dots2[i].pt.x, bounds);
+            float y = amplitudeToY(_dots2[i].pt.y, bounds);
+
+            // Check if we are clicking a dot
+            if (isDotClicked(mouseX, mouseY, x, y)) {
+                return std::pair<int, graphElement>(i, graphElement::dot);
+            }
+
+            // Check if we are clicking a center of a line
+            if (i > 0) {
+                float lastX = frequencyToX(_dots2[i-1].pt.x, bounds);
+                float lastY = amplitudeToY(_dots2[i-1].pt.y, bounds);
+                float lineCenterX = (x + lastX) / 2;
+                float lineCenterY = (y + lastY) / 2;
+
+                if (isDotClicked(mouseX, mouseY, lineCenterX, lineCenterY)) {
+                    return std::pair<int, graphElement>(i, graphElement::line);
+                    }
+                }
+            }
+        }
+        return std::pair<int, graphElement>(-1, graphElement::dot);
+    }
+
     int getClickedDotIndex(float mouseX, float mouseY, const juce::Rectangle<int>& bounds) const
     {
-        for (size_t i = 0; i < _dots.size(); ++i)
+        for (size_t i = 0; i < _dots2.size(); ++i)
         {
-            float x = frequencyToX(_dots[i].first, bounds);
-            float y = amplitudeToY(_dots[i].second, bounds);
+            float x = frequencyToX(_dots2[i].pt.x, bounds);
+            float y = amplitudeToY(_dots2[i].pt.y, bounds);
             // debug_dot(i, x, y, _dots[i].first);
             // Check if the mouse click is within the dot's radius
             if (std::hypot(mouseX - x, mouseY - y) <= 5.0f)
@@ -187,47 +225,6 @@ private:
         return -1; // No dot clicked
     }
 
-    size_t findClosestLineSegment(float freq, float amp, const juce::Rectangle<int>& bounds) const
-    {
-        size_t closestIndex = 0;
-        float closestDistance = std::numeric_limits<float>::max();
-
-        for (size_t i = 0; i < _dots.size() - 1; ++i)
-        {
-            auto x1 = frequencyToX(_dots[i].first, bounds);
-            auto y1 = amplitudeToY(_dots[i].second, bounds);
-            auto x2 = frequencyToX(_dots[i + 1].first, bounds);
-            auto y2 = amplitudeToY(_dots[i + 1].second, bounds);
-
-            float distance = pointToLineSegmentDistance({ x1, y1 }, { x2, y2 }, { freq, amp });
-            if (distance < closestDistance)
-            {
-                closestDistance = distance;
-                closestIndex = i;
-            }
-        }
-
-        return closestIndex;
-    }
-
-    float pointToLineSegmentDistance(juce::Point<float> p1, juce::Point<float> p2, juce::Point<float> p) const
-    {
-        auto d = p2 - p1;
-        float lenSquared = d.x * d.x + d.y * d.y; // Squared length of the line segment
-
-        if (lenSquared == 0.0f)
-            return p.getDistanceFrom(p1); // If the line segment is a point, return distance to p1
-
-        // Project the point onto the line segment and clamp to the segment
-        auto t = ((p.x - p1.x) * d.x + (p.y - p1.y) * d.y) / lenSquared;
-        t = juce::jlimit(0.0f, 1.0f, t);
-
-        // Compute the projection point
-        auto projection = p1 + d * t;
-
-        // Return the distance from the point to the projection
-        return p.getDistanceFrom(projection);
-    }
 
     void addDot(float x, float y)
     {

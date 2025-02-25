@@ -24,28 +24,7 @@ void FrequencyGraph::paint(juce::Graphics& g)
 
     std::cout << "lines at start\n";
     debug_curves();
-    for (size_t i = 0; i < _dots.size(); i++)
-    {
-        float x = frequencyToX(_dots[i].first, graphBounds);
-        float y = amplitudeToY(_dots[i].second, graphBounds);
-        std::cout << x << "Hz for left of line\n";
 
-        if (i < _dots.size() - 1) {
-
-            // juce::Point<float> start(frequencyToX(_dots[i].first, getGraphBounds()),
-            //                         amplitudeToY(_dots[i].second, getGraphBounds()));
-            // juce::Point<float> end(frequencyToX(_dots[i + 1].first, getGraphBounds()),
-            //                     amplitudeToY(_dots[i + 1].second, getGraphBounds()));
-
-            // juce::Rectangle<float> rect(_curvedLines[i].center.getX() - 5, _curvedLines[i].control.getY() - 5, 10, 10);
-            // g.drawEllipse(rect, 3);
-            // path.startNewSubPath(start);
-            // std::cout << i << " loop ctrl " << _curvedLines[i].control.y << "\n";
-            // path.quadraticTo(_curvedLines[i].control, end);
-        }
-
-        g.fillEllipse(x - 5, y - 5, 10, 10); // Draw dot
-    }
     std::cout << "lines at end\n";
     debug_curves();
     g.strokePath(path, juce::PathStrokeType(2.0f));
@@ -112,10 +91,17 @@ bool FrequencyGraph::isWithinGraphBounds(float x, float y) const
 {
     auto bounds = getGraphBounds();
 
-    return !(x < bounds.getX() ||
-           x > bounds.getX() + bounds.getWidth() ||
-           y < bounds.getY() ||
-           y > bounds.getY() + bounds.getHeight());
+    return isWithinGraphBounds(x, y, bounds);
+}
+
+bool FrequencyGraph::isWithinGraphBounds(float x, float y, juce::Rectangle<int> graphBounds) const
+{
+    auto bounds = getGraphBounds();
+
+    return !(x < graphBounds.getX() ||
+           x > graphBounds.getX() + graphBounds.getWidth() ||
+           y < graphBounds.getY() ||
+           y > graphBounds.getY() + graphBounds.getHeight());
 }
 
 juce::Rectangle<int> FrequencyGraph::getGraphBounds() const
@@ -172,48 +158,50 @@ juce::Rectangle<int> FrequencyGraph::getGraphBounds() const
 // }
 void FrequencyGraph::mouseDown(const juce::MouseEvent& event)
 {
+    /*  1. if click is on dot, start dragging it
+        2. if on curve */
     float mouseX = event.position.x;
     float mouseY = event.position.y;
 
-    if (!isWithinGraphBounds(mouseX, mouseY)) {
+    auto graphBounds = getGraphBounds();
+
+    if (!isWithinGraphBounds(mouseX, mouseY, graphBounds)) {
         std::cout << "click out of graph\n";
         return; }
 
-    auto graphBounds = getGraphBounds();
 
     std::cout << "Click: " << mouseX << ", " << mouseY << "\n";
 
+
     // Check if we clicked on an existing dot
-    int clickedDotIndex = getClickedDotIndex(mouseX, mouseY, graphBounds);
-    if (clickedDotIndex != -1)
-    {
-        // Start dragging this dot
-        _dragged_dot_idx = clickedDotIndex;
-        return;
-    } else {
-        for (auto& line : _curvedLines) {
-            if (event.getPosition().toFloat().getDistanceFrom(line.center) < 10.0f) {
-                // Start dragging this line
-                _draggingLine = &line;
+    std::pair<int, graphElement> clickedItem = getClickedItem(mouseX, mouseY, graphBounds);
+
+    if (clickedItem.first != -1) {
+        // Save the clicked item
+        _clicked_items.first.push_back(clickedItem.first);
+        _clicked_items.second = clickedItem.second;
+
+    } else { // Box selection begins
+
+        // TODO: do drag, in up, check how much dragging, create dot if not a lot
+
+        // Split the closest line
+        float freq = xToFrequency(mouseX, graphBounds);
+        float amp = yToAmplitude(mouseY, graphBounds);
+
+        // TODO: check bounds in xy
+        if (freq < _freq_bounds.first ||
+            freq > _freq_bounds.second ||
+            amp < _amp_bounds.first ||
+            amp > _amp_bounds.second ) {
                 return;
             }
-        }
+
+        addDot(freq, amp);
+
+        repaint();
+
     }
-    // Otherwise, split the closest line
-    float freq = xToFrequency(mouseX, graphBounds);
-    float amp = yToAmplitude(mouseY, graphBounds);
-
-    // TODO: check bounds in xy
-    if (freq < _freq_bounds.first ||
-        freq > _freq_bounds.second ||
-        amp < _amp_bounds.first ||
-        amp > _amp_bounds.second ) {
-            return;
-        }
-
-    addDot(freq, amp);
-
-    repaint();
 
 
 
@@ -229,17 +217,19 @@ void FrequencyGraph::mouseDown(const juce::MouseEvent& event)
 
 void FrequencyGraph::mouseDrag(const juce::MouseEvent& event)
 {
-    if (_dragged_dot_idx >= 0)
-    {
+    if (_clicked_items.first.size() > 0) {
+
         auto graphBounds = getGraphBounds();
 
         // Convert mouse position to frequency and amplitude
         float freq = xToFrequency(event.position.x, graphBounds);
         float amp = yToAmplitude(event.position.y, graphBounds);
 
+        int dotIdx = _clicked_items.first[0]; // TODO: loop
+
         // Clamp values to valid ranges (Graph bounds, or adjacent dots)
-        float leftBound = (_dragged_dot_idx > 0) ? _dots[_dragged_dot_idx-1].first : _freq_bounds.first;
-        float rightBound = (_dragged_dot_idx < _dots.size() - 1) ? _dots[_dragged_dot_idx+1].first : _freq_bounds.second;
+        float leftBound = (dotIdx > 0) ? _dots2[dotIdx-1].first : _freq_bounds.first;
+        float rightBound = (dotIdx < _dots2.size() - 1) ? _dots2[dotIdx+1].first : _freq_bounds.second;
         freq = juce::jlimit(leftBound, rightBound, freq);
         amp = juce::jlimit(_amp_bounds.first, _amp_bounds.second, amp);
 
