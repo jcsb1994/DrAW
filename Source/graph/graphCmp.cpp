@@ -17,20 +17,48 @@ void FrequencyGraph::paint(juce::Graphics& g)
 
     // Draw dynamic elements (_dots and lines)
 
-    g.setColour(juce::Colours::cyan);
-    auto graphBounds = getGraphBounds();
-
+    auto selected_it = _clicked_items.first.begin();
+    auto selected_end = _clicked_items.first.end();
     juce::Path path;
+    auto bounds = getGraphBounds(); // Note: getlocalbounds doesnt work.. why?
 
-    std::cout << "lines at start\n";
-    debug_curves();
+    for (int i = 0; i < _dots2.size(); i++) {
+        bool selected = (selected_it != selected_end && i == *selected_it);
+        if (selected) {
+            selected_it++; // Move to the next selected index
+        }
 
-    std::cout << "lines at end\n";
-    debug_curves();
-    g.strokePath(path, juce::PathStrokeType(2.0f));
+        float x = frequencyToX(_dots2[i].pt.x, bounds);
+        float y = amplitudeToY(_dots2[i].pt.y, bounds);
+        _lnf.drawDot(g, x, y, selected && (_clicked_items.second == graphElement::dot));
 
-    paint2(g);
+        if (i > 0) {
+            float lastX = frequencyToX(_dots2[i-1].pt.x, bounds);
+            float lastY = amplitudeToY(_dots2[i-1].pt.y, bounds);
+            juce::Point<float> start(lastX, lastY);
+            juce::Point<float> end(x, y);
+
+            path.startNewSubPath(start);
+            float ctrlX = (x + lastX) / 2;
+            float ctrlY = (y + lastY) / 2;// + _dots2[i].control;
+            juce::Point<float> ctrlPoint(ctrlX, ctrlY);
+
+            _lnf.drawLineCenter(g, ctrlPoint.x, ctrlPoint.y, selected && (_clicked_items.second == graphElement::line));
+
+            std::cout << "Line " << i << "\n";
+            printDot("Left", start);
+            printDot("Ctrl", ctrlPoint);
+            printDot("Right", end);
+            std::cout << "----\n";
+            // FIXME: control doit etre perpendiculaire a slope, pas vertical
+
+            path.quadraticTo(ctrlPoint, end); // TODO: change fct depending linemode
+            // path.lineTo(_dots2[i].pt);
+        }
+    }
+    _lnf.drawLine(g, path);
 }
+
 //==========================
 
 void FrequencyGraph::createStaticGraph()
@@ -227,53 +255,19 @@ void FrequencyGraph::mouseDrag(const juce::MouseEvent& event)
 
         int dotIdx = _clicked_items.first[0]; // TODO: loop
 
-        // Clamp values to valid ranges (Graph bounds, or adjacent dots)
-        float leftBound = (dotIdx > 0) ? _dots2[dotIdx-1].first : _freq_bounds.first;
-        float rightBound = (dotIdx < _dots2.size() - 1) ? _dots2[dotIdx+1].first : _freq_bounds.second;
-        freq = juce::jlimit(leftBound, rightBound, freq);
-        amp = juce::jlimit(_amp_bounds.first, _amp_bounds.second, amp);
-
-
-        float deltaFreq =  freq - _dots[_dragged_dot_idx].first;
-        float deltaAmp =  amp - _dots[_dragged_dot_idx].second;
-        // update adjacent line centers
-        if (_dragged_dot_idx > 0) {
-            // update left line
-            _curvedLines[_dragged_dot_idx-1].center.addXY(deltaFreq/2, deltaAmp/2);
-
+        if (_clicked_items.second == graphElement::dot) {
+            moveDot(dotIdx, freq, amp);
+        } else if (_clicked_items.second == graphElement::line) {
+            applyLineCtrl(dotIdx, event.position.x, event.position.y, graphBounds);
         }
-        if (_dragged_dot_idx < _dots.size() - 1) {
-            // update right line
-            _curvedLines[_dragged_dot_idx].center.addXY(deltaFreq/2, deltaAmp/2);
-        }
-        // updateCurvedLines();
-
-        _dots[_dragged_dot_idx] = { freq, amp };
-
-    } else if (_draggingLine) {
-        // // clamp line ctrl pt
-        auto graphBounds = getGraphBounds();
-
-        // Convert mouse position to frequency and amplitude
-        float amp = yToAmplitude(event.position.y, graphBounds);
-
-        if (amp > _amp_bounds.second) {
-            _draggingLine->control.y = amplitudeToY( _amp_bounds.second, graphBounds);
-        } else if (amp < _amp_bounds.first) {
-            _draggingLine->control.y = amplitudeToY( _amp_bounds.first, graphBounds);
-        } else {
-            _draggingLine->control.y = amplitudeToY( amp, graphBounds);
-        }
-        // auto graphBounds = getGraphBounds();
-        // _draggingLine->control.y = event.position.y;
-        std::cout << "amp " << amp << " event.position.y; "  << event.position.y << "\n";
-        // Update center pos TODO:
     }
+
     repaint();
 }
 
 void FrequencyGraph::mouseUp(const juce::MouseEvent&)
 {
-    _dragged_dot_idx = -1; // Reset dragged dot
-    _draggingLine = nullptr;
+    _clicked_items.first = {}; // No need to reset the graphElement
+
+    repaint();
 }

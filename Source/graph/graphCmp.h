@@ -13,13 +13,19 @@ class DotLnF : public juce::LookAndFeel_V4 {
     static constexpr int dotRadius = 5;
 public:
     void drawDot(juce::Graphics& g, float x, float y, bool isSelected) {
-        g.setColour(isSelected ? juce::Colours::red : juce::Colours::yellow);
+        g.setColour(isSelected ? juce::Colours::blue : juce::Colours::cyan);
         g.fillEllipse(x - dotRadius, y - dotRadius, (dotRadius*2), (dotRadius*2));
         g.setColour(juce::Colours::black);
         g.drawEllipse(x - dotRadius, y - dotRadius, (dotRadius*2), (dotRadius*2), 2);
     }
+    void drawLineCenter(juce::Graphics& g, float x, float y, bool isSelected) {
+        g.setColour(juce::Colours::black);
+        g.fillEllipse(x - dotRadius, y - dotRadius, (dotRadius*2), (dotRadius*2));
+        g.setColour(isSelected ? juce::Colours::blue : juce::Colours::cyan);
+        g.drawEllipse(x - dotRadius, y - dotRadius, (dotRadius*2), (dotRadius*2), 2);
+    }
     void drawLine(juce::Graphics& g, juce::Path& path) {
-        g.setColour(juce::Colours::yellow);
+        g.setColour(juce::Colours::cyan);
         g.strokePath(path, juce::PathStrokeType(3.0f));
     }
 
@@ -112,8 +118,8 @@ private:
 
     std::vector<FreqDot> _dots2;
     DotLnF _lnf; // Manages visuals for the dots set
-    std::vector<int> _selected_idxs; // manages selecting more t`
-    std::pair<std::vector<int>, graphElement> _clicked_items{-1, graphElement::dot};
+    // std::vector<int> _selected_idxs; // manages selecting more t`
+    std::pair<std::vector<int>, graphElement> _clicked_items{{}, graphElement::dot};
 
 
     // Map frequency (log scale) to X position
@@ -204,11 +210,12 @@ private:
 
                 if (isDotClicked(mouseX, mouseY, lineCenterX, lineCenterY)) {
                     return std::pair<int, graphElement>(i, graphElement::line);
-                    }
                 }
             }
         }
-        return std::pair<int, graphElement>(-1, graphElement::dot);
+
+        // std::pair<int, graphElement> rc{-1, graphElement::dot};
+        return std::pair<int, graphElement>{-1, graphElement::dot};
     }
 
     int getClickedDotIndex(float mouseX, float mouseY, const juce::Rectangle<int>& bounds) const
@@ -245,6 +252,31 @@ private:
         printDot("New", point);
     }
 
+    /*! \brief Move dot at specified idx to new freq/amp coordinates */
+    void moveDot(int idx, float freq, float amp)
+    {
+        // Clamp values to valid ranges (Graph bounds, or adjacent dots)
+        float leftBound = (idx > 0) ? _dots2[idx-1].pt.x : _freq_bounds.first;
+        float rightBound = (idx < _dots2.size() - 1) ? _dots2[idx+1].pt.x : _freq_bounds.second;
+
+        freq = juce::jlimit(leftBound, rightBound, freq);
+        amp = juce::jlimit(_amp_bounds.first, _amp_bounds.second, amp);
+
+        _dots2[idx].pt.setXY(freq, amp);
+    }
+
+    void applyLineCtrl(int idx, int mouseX, int mouseY, const juce::Rectangle<int>& bounds)
+    {
+        juce::Point<float> linePt(0, 0);
+        juce::Point<float> mousePos(mouseX, mouseY);
+        getLineCenterPoint(idx, bounds, linePt);
+
+        juce::Point<float> distanceVector = mousePos - linePt;
+        // float distance = distanceVector.getDistanceFromOrigin();
+
+        _dots2[idx].control += distanceVector.y; // Do not use absolute value, can be negative!
+    }
+
     void printDot(juce::String name, juce::Point<float> point)
     {
         std::cout << name << " dot: (" << point.x << "," << point.y << ")\n";
@@ -254,49 +286,5 @@ private:
         std::cout << name << " dot: (" << x << "," << y << ")\n";
     }
 
-
-    void paint2(juce::Graphics& g)
-    {
-        auto selected_it = _selected_idxs.begin();
-        auto selected_end = _selected_idxs.end();
-        juce::Path path;
-        auto bounds = getGraphBounds(); // Note: getlocalbounds doesnt work.. why?
-
-        for (int i = 0; i < _dots2.size(); i++) {
-            bool selected = (selected_it != selected_end && i == *selected_it);
-            float x = frequencyToX(_dots2[i].pt.x, bounds);
-            float y = amplitudeToY(_dots2[i].pt.y, bounds);
-            _lnf.drawDot(g, x, y, selected);
-
-            if (selected) {
-                selected_it++; // Move to the next selected index
-            }
-
-            if (i > 0) {
-                float lastX = frequencyToX(_dots2[i-1].pt.x, bounds);
-                float lastY = amplitudeToY(_dots2[i-1].pt.y, bounds);
-                juce::Point<float> start(lastX, lastY);
-                juce::Point<float> end(x, y);
-
-                path.startNewSubPath(start);
-                float ctrlX = (x + lastX) / 2;
-                float ctrlY = (y + lastY) / 2;// + _dots2[i].control;
-                juce::Point<float> ctrlPoint(ctrlX, ctrlY);
-                _lnf.drawDot(g, ctrlPoint.x, ctrlPoint.y, true);
-
-                std::cout << "Line " << i << "\n";
-                printDot("Left", start);
-                printDot("Ctrl", ctrlPoint);
-                printDot("Right", end);
-                std::cout << "----\n";
-                // FIXME: control doit etre perpendiculaire a slope, pas vertical
-
-                path.quadraticTo(ctrlPoint, end); // TODO: change fct depending linemode
-                // path.lineTo(_dots2[i].pt);
-            }
-        }
-        _lnf.drawLine(g, path);
-
-    }
 
 };
