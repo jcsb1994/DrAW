@@ -255,14 +255,23 @@ private:
     /*! \brief Move dot at specified idx to new freq/amp coordinates */
     void moveDot(int idx, float freq, float amp)
     {
-        // Clamp values to valid ranges (Graph bounds, or adjacent dots)
-        float leftBound = (idx > 0) ? _dots2[idx-1].pt.x : _freq_bounds.first;
-        float rightBound = (idx < _dots2.size() - 1) ? _dots2[idx+1].pt.x : _freq_bounds.second;
-
-        freq = juce::jlimit(leftBound, rightBound, freq);
         amp = juce::jlimit(_amp_bounds.first, _amp_bounds.second, amp);
+        // TODO: CLEANUP
+        if (_dots2.size() > 2) {
+            // Clamp freq to valid ranges (Graph bounds, or adjacent dots)
+            float leftBound = (idx > 0) ? _dots2[idx-1].pt.x : _freq_bounds.first;
+            float rightBound = (idx < _dots2.size() - 1) ? _dots2[idx+1].pt.x : _freq_bounds.second;
+            if (idx == 0) {
+                rightBound = _freq_bounds.first;
+            } else if (idx == _dots2.size() - 1) {
+                leftBound = _freq_bounds.second;
+            }
+            freq = juce::jlimit(leftBound, rightBound, freq);
+            _dots2[idx].pt.setXY(freq, amp);
 
-        _dots2[idx].pt.setXY(freq, amp);
+        } else { // When only 2 dots, freq cannot change
+            _dots2[idx].pt.setY(amp);
+        }
     }
 
     void applyLineCtrl(int idx, int mouseX, int mouseY, const juce::Rectangle<int>& bounds)
@@ -274,7 +283,8 @@ private:
         juce::Point<float> distanceVector = mousePos - linePt;
         // float distance = distanceVector.getDistanceFromOrigin();
 
-        _dots2[idx].control += distanceVector.y; // Do not use absolute value, can be negative!
+        _dots2[idx].control = distanceVector.y; // Do not use absolute value, can be negative!
+        std::cout << "ctrl:" << _dots2[idx].control << "\n";
     }
 
     void printDot(juce::String name, juce::Point<float> point)

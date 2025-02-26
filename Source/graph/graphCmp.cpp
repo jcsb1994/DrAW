@@ -8,6 +8,28 @@ void FrequencyGraph::resized()
 
 }
 
+// Compute highest point of quadratic Bézier curve
+juce::Point<float> getHighestPoint(juce::Point<float> p0, juce::Point<float> p1, juce::Point<float> p2)
+{
+    float denominator = p0.x - 2.0f * p1.x + p2.x;
+    if (denominator == 0.0f) return p0; // Avoid division by zero (degenerate case)
+
+    float t_vertex = (p0.x - p1.x) / denominator;
+    t_vertex = juce::jlimit(0.0f, 1.0f, t_vertex); // Ensure t is in range [0, 1]
+
+    // Bézier equation to get the point at t_vertex
+    float x_high = (1 - t_vertex) * (1 - t_vertex) * p0.x +
+                   2 * (1 - t_vertex) * t_vertex * p1.x +
+                   t_vertex * t_vertex * p2.x;
+
+    float y_high = (1 - t_vertex) * (1 - t_vertex) * p0.y +
+                   2 * (1 - t_vertex) * t_vertex * p1.y +
+                   t_vertex * t_vertex * p2.y;
+
+    return {x_high, y_high}; // Highest point
+}
+
+
 void FrequencyGraph::paint(juce::Graphics& g)
 {
 
@@ -39,20 +61,22 @@ void FrequencyGraph::paint(juce::Graphics& g)
             juce::Point<float> end(x, y);
 
             path.startNewSubPath(start);
-            float ctrlX = (x + lastX) / 2;
-            float ctrlY = (y + lastY) / 2;// + _dots2[i].control;
-            juce::Point<float> ctrlPoint(ctrlX, ctrlY);
+            float centerX = (x + lastX) / 2;
+            float centerY = ((y + lastY) / 2);
 
-            _lnf.drawLineCenter(g, ctrlPoint.x, ctrlPoint.y, selected && (_clicked_items.second == graphElement::line));
-
-            std::cout << "Line " << i << "\n";
-            printDot("Left", start);
-            printDot("Ctrl", ctrlPoint);
-            printDot("Right", end);
-            std::cout << "----\n";
-            // FIXME: control doit etre perpendiculaire a slope, pas vertical
-
+            juce::Point<float> ctrlPoint(centerX, centerY + _dots2[i].control);
+            ctrlPoint.y = juce::jlimit((float)bounds.getTopLeft().y,(float)bounds.getBottom(), ctrlPoint.y);
+            _lnf.drawLineCenter(g, centerX, centerY, selected && (_clicked_items.second == graphElement::line));
             path.quadraticTo(ctrlPoint, end); // TODO: change fct depending linemode
+            juce::Point<float> highestPoint = getHighestPoint(start, ctrlPoint, end);
+            std::cout << "Highest point: " << highestPoint.toString() << ctrlPoint.toString();
+
+            // std::cout << "Line " << i << "\n";
+            // printDot("Left", start);
+            // printDot("Ctrl", ctrlPoint);
+            // printDot("Right", end);
+            // std::cout << "----\n";
+            // FIXME: control doit etre perpendiculaire a slope, pas vertical
             // path.lineTo(_dots2[i].pt);
         }
     }
