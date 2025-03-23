@@ -36,6 +36,8 @@ MainCmp::~MainCmp()
     redButton.removeListener(this);
 
     FreeConsole(); // Close the console when the application quits
+
+    // redButton.onClick = [this]() { graph.genFreqPath(); };
 }
 
 void MainCmp::paint (juce::Graphics& g)
@@ -81,6 +83,8 @@ void MainCmp::buttonClicked(juce::Button* button)
 {
     if (button == &redButton)
     {
-        std::cout << "red butt" << std::endl;
+        // std::cout << "red butt" << std::endl;
+        graph.genFreqPath();
+        // button.onClick = [this]() { graphComponent->resetZoom(); };
     }
 }

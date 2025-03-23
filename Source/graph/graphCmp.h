@@ -107,6 +107,9 @@ public:
     void mouseDrag(const juce::MouseEvent& event) override;
     void mouseUp(const juce::MouseEvent&) override;
 
+    // Prepare audio
+    void genFreqPath();
+
 private:
     enum class graphElement { dot, line };
     // Drawing
@@ -115,6 +118,8 @@ private:
     const float _amp_range = _amp_bounds.second - _amp_bounds.first;
     const float _log_ratio = std::log10(_freq_bounds.second / _freq_bounds.first); // ~2.3
     juce::Image _staticGraph;
+
+    juce::Path _freqPath;
 
     std::vector<FreqDot> _dots2;
     DotLnF _lnf; // Manages visuals for the dots set
@@ -145,7 +150,7 @@ private:
     {
         float x_offset = x - bounds.getX();
         float result =  _freq_bounds.first * std::pow(10.0f, x_offset / bounds.getWidth() * _log_ratio);
-        std::cout << "X @ offset " << x_offset << " to frquency:\n\tLog10(20k/100)=" << _log_ratio << "\n\tFinal freq=" << result << "\n";
+        // std::cout << "X @ offset " << x_offset << " to frquency:\n\tLog10(20k/100)=" << _log_ratio << "\n\tFinal freq=" << result << "\n";
         return result;
     }
 
