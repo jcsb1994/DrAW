@@ -114,7 +114,7 @@ private:
     enum class graphElement { dot, line };
     // Drawing
     const std::pair<float, float> _freq_bounds{ 10.0f, 20000.0f };
-    const std::pair<float, float> _amp_bounds{ -24.0f, 24.0f }; //TODO: check if should be - to 0
+    const std::pair<float, float> _amp_bounds{ 0.0f, 24.0f };
     const float _amp_range = _amp_bounds.second - _amp_bounds.first;
     const float _log_ratio = std::log10(_freq_bounds.second / _freq_bounds.first); // ~2.3
     juce::Image _staticGraph;
@@ -142,7 +142,7 @@ private:
     // Map amplitude to Y position
     float amplitudeToY(float amp, juce::Rectangle<int> bounds) const
     {
-        return bounds.getBottom() - (amp + _amp_bounds.second) * bounds.getHeight() / _amp_range;
+        return bounds.getTopLeft().y + ((_amp_range - amp) * bounds.getHeight() / _amp_range);
     }
 
     // Map X position to frequency
