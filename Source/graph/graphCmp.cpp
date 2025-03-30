@@ -10,50 +10,83 @@ void FrequencyGraph::resized()
 
 
 #include <juce_audio_formats/juce_audio_formats.h>
-#include <cmath>
-
-void generateWav(const std::vector<float>& freqs, const std::vector<float>& amps, const juce::String& outputPath)
+#include <juce_dsp/juce_dsp.h>
+#include <complex>
+void generateWavIFFT(const std::vector<float>& freqs, const std::vector<float>& amps, const juce::String& outputPath)
 {
-    constexpr double sampleRate = 44100.0; // CD quality
-    constexpr int numSamples = 44100 * 5;  // 5 seconds of audio
-    juce::AudioBuffer<float> buffer(1, numSamples); // Mono
+    constexpr int fftSize = 1024;          // FFT size
+    constexpr double sampleRate = 44100.0;  // CD sample rate
 
-    buffer.clear();
+    juce::dsp::FFT fft(static_cast<int>(std::log2(fftSize)));
 
-    // Synthesize the waveform
+    // Frequency-domain buffer (real + imag)
+    std::vector<float> freqDomain(fftSize * 2, 0.0f);
+
+    // Map frequencies to FFT bins
     for (size_t i = 0; i < freqs.size(); ++i)
     {
-        double freq = freqs[i];
-        float amp = amps[i];
-
-        for (int sample = 0; sample < numSamples; ++sample)
+        if (amps[i] > 0.0f)
         {
-            float t = static_cast<float>(sample) / sampleRate;
-            float value = amp * std::sin(2.0 * juce::MathConstants<double>::pi * freq * t);
+            int binIndex = static_cast<int>((freqs[i] / sampleRate) * (fftSize / 2));
 
-            buffer.addSample(0, sample, value);
+            if (binIndex >= 0 && binIndex < fftSize / 2)
+            {
+                // Set real + imag parts
+                freqDomain[binIndex * 2] = amps[i];       // Real part
+                freqDomain[binIndex * 2 + 1] = 0.0f;      // Imaginary part
+
+                // Mirror the spectrum
+                if (binIndex > 0)
+                {
+                    int mirrorIndex = fftSize - binIndex;
+                    freqDomain[mirrorIndex * 2] = amps[i];      // Real part
+                    freqDomain[mirrorIndex * 2 + 1] = 0.0f;     // Imaginary part
+                }
+            }
         }
     }
 
-    // Normalize the waveform to avoid clipping
-    buffer.applyGain(0.5f);
+    // Perform the IFFT
+    fft.performRealOnlyInverseTransform(freqDomain.data());
 
-    // Write to WAV file
-    juce::File outputFile(outputPath);
+    // Normalize the time-domain signal
+    const float maxSample = *std::max_element(freqDomain.begin(), freqDomain.end(),
+                                              [](float a, float b) { return std::abs(a) < std::abs(b); });
+
+    if (maxSample > 0.0f)
+    {
+        for (auto& sample : freqDomain)
+            sample /= maxSample;  // Normalize to -1.0f to +1.0f range
+    }
+    // Write to WAV
+    juce::AudioBuffer<float> buffer(1, fftSize);  // Mono channel
+    auto* channelData = buffer.getWritePointer(0);
+    std::copy(freqDomain.begin(), freqDomain.begin() + fftSize, channelData);
+
     juce::WavAudioFormat format;
 
-    std::unique_ptr<juce::AudioFormatWriter> writer;
-    writer.reset(format.createWriterFor(new juce::FileOutputStream(outputFile),
-                                        sampleRate,
-                                        buffer.getNumChannels(),
-                                        16, // Bit depth
-                                        {}, 0));
+    // Use unique_ptr for the stream
+    std::unique_ptr<juce::OutputStream> outStream(juce::File(outputPath).createOutputStream());
 
-    if (writer)
+    if (outStream)
     {
-        writer->writeFromAudioSampleBuffer(buffer, 0, buffer.getNumSamples());
+        // Create the writer and transfer ownership of the stream
+        juce::AudioFormatWriter* writer = format.createWriterFor(outStream.get(), sampleRate, 1, 16, {}, 0);
+
+        if (writer)
+        {
+            // Release the stream from the unique_ptr to avoid double deletion
+            outStream.release();  // Prevent double free
+
+            writer->writeFromAudioSampleBuffer(buffer, 0, buffer.getNumSamples());
+
+            delete writer;  // Safely delete the writer
+        }
     }
+
 }
+
+
 
 
 void FrequencyGraph::genFreqPath()
@@ -72,19 +105,25 @@ void FrequencyGraph::genFreqPath()
 
     constexpr float freq_step = (1.0f / 1024.0f);
 
-    for (int i = 1; i <= numSamples; ++i)
-    {
+    int skipped_steps = 0;
+    for (int i = 1; i <= numSamples; ++i) {
 
         juce::Point<float> pt = _freqPath.getPointAlongPath(pathLength * (i * freq_step));
 
         float freq = xToFrequency(pt.x, bounds);
+        if (!freqData.empty() && (freq == freqData.back())) {
+            std::cout << "vline ";
+            skipped_steps++; // TODO: reduce step size along path, check end of path for vertical too
+            continue;
+        }
+
         float amp = yToAmplitude(pt.y, bounds);
         freqData.push_back(freq);
         ampData.push_back(amp);
         // std::cout << "\npt :" << i << " " << freq_step << " " << pt.toString() << " " << freq << " " << amp;
     }
     // std::cout << "===\n";
-    generateWav(freqData, ampData, "C:\\Users\\jcbsk\\Desktop\\test.wav");
+    generateWavIFFT(freqData, ampData, "C:\\Users\\jcbsk\\Desktop\\test.wav");
     std::cout << "wav generated";
 }
 
