@@ -12,42 +12,59 @@ void FrequencyGraph::resized()
 #include <juce_audio_formats/juce_audio_formats.h>
 #include <juce_dsp/juce_dsp.h>
 #include <complex>
-void generateWavIFFT(const std::vector<float>& freqs, const std::vector<float>& amps, const juce::String& outputPath)
+
+constexpr int fftSize = 1024;          // FFT size
+constexpr double sampleRate = 44100.0;  // CD sample rate
+
+
+int8_t generateWavIFFT(const std::vector<float>& freqs, const std::vector<float>& amps, const juce::String& outputPath)
 {
-    constexpr int fftSize = 1024;          // FFT size
-    constexpr double sampleRate = 44100.0;  // CD sample rate
+    /*
+    Since we create a repeating soundwave, we only need one chunk of samples. So 1024 samples that would in a forward
+    FFT represent a single chunk or like 20ms of sound, is enough for our inverse FFT. We look at the user UI graph,
+    and interpret it as a single FFT chunk of 1024 samples.
+
+    So this function expects freqs and amps vectors to be len 512, because the function fills out the 512 last indexes with
+    the mirror bins containing the negative frequencies as is needed by IFFTs.
+    freqs should contain evenly spaced freqencies, (20kHz - 10Hz) / 512.
+
+
+    We take the list of freqs and amps, and conglomerate them in freq bins. In an IFFT, each freq bin is
+    a complex number of a given freq, which is the space between each bin. The freq space between each bin is
+    sample Rate / FFT size = 48000/1024 ≈ 46.875 Hz. Bin 0 is always 0Hz, bin 1 is 46Hz, bin 2 is 92Hz, ... etc
+    until bin 512 (fftSize / 2, which is the nyquist freq)
+    */
+
+    const int numBins = (fftSize / 2) + 1; // Number of real bins (0Hz..Nyquist)
+    const float nyquistFreq = sampleRate / 2.0f;
+
+    if (freqs.size() != numBins || freqs.size() != amps.size()) {
+        return -1;
+    }
 
     juce::dsp::FFT fft(static_cast<int>(std::log2(fftSize)));
 
-    // Frequency-domain buffer (real + imag)
-    std::vector<float> freqDomain(fftSize * 2, 0.0f);
+    std::vector<std::complex<float>> freqDomain(fftSize);
+    std::vector<std::complex<float>> outBuffer(fftSize);
 
-    // Map frequencies to FFT bins
-    for (size_t i = 0; i < freqs.size(); ++i)
-    {
-        if (amps[i] > 0.0f)
-        {
-            int binIndex = static_cast<int>((freqs[i] / sampleRate) * (fftSize / 2));
-
-            if (binIndex >= 0 && binIndex < fftSize / 2)
-            {
-                // Set real + imag parts
-                freqDomain[binIndex * 2] = amps[i];       // Real part
-                freqDomain[binIndex * 2 + 1] = 0.0f;      // Imaginary part
-
-                // Mirror the spectrum
-                if (binIndex > 0)
-                {
-                    int mirrorIndex = fftSize - binIndex;
-                    freqDomain[mirrorIndex * 2] = amps[i];      // Real part
-                    freqDomain[mirrorIndex * 2 + 1] = 0.0f;     // Imaginary part
-                }
-            }
-        }
+    // 1. Fill bins 0..512 (DC to Nyquist)
+    for (size_t k = 0; k < numBins; ++k) {
+        freqDomain[k] = std::complex<float>(amps[k], 0.0f);
     }
 
+    // 2. Fill bins 513..1023 (mirror)
+    for (size_t k = numBins; k < fftSize; ++k) {
+        freqDomain[k] = std::conj(freqDomain[fftSize - k]);
+    }
+
+    // 3. Perform the IFFT
+    fft.perform(freqDomain.data(), outBuffer.data(), true);
+
+
     // Perform the IFFT
-    fft.performRealOnlyInverseTransform(freqDomain.data());
+
+    /* It is allowed to pass a vector to a pointer fct parameter, but you must use vect.data() */
+    fft.perform(freqDomain.data(), outBuffer.data(), true);
 
     // Normalize the time-domain signal
     const float maxSample = *std::max_element(freqDomain.begin(), freqDomain.end(),
@@ -96,33 +113,44 @@ void FrequencyGraph::genFreqPath()
 
     auto bounds = getGraphBounds();
 
-    // Define the frequency range you want to extract
-    const int numSamples = 1024;
+    // const int numSamples = (fftSize / 2); // 512
 
-    float pathLength = _freqPath.getLength();
+    // float pathLength = _freqPath.getLength();
 
-    // Find the point at 1% of the total length
+    // // Find the point at 1% of the total length
 
-    constexpr float freq_step = (1.0f / 1024.0f);
+    // constexpr float freq_step = (1.0f / numSamples);
 
-    int skipped_steps = 0;
-    for (int i = 1; i <= numSamples; ++i) {
+    // int skipped_steps = 0;
+    // for (int i = 1; i <= numSamples; ++i) {
 
-        juce::Point<float> pt = _freqPath.getPointAlongPath(pathLength * (i * freq_step));
+    //     juce::Point<float> pt = _freqPath.getPointAlongPath(pathLength * (i * freq_step));
 
-        float freq = xToFrequency(pt.x, bounds);
-        if (!freqData.empty() && (freq == freqData.back())) {
-            std::cout << "vline ";
-            skipped_steps++; // TODO: reduce step size along path, check end of path for vertical too
-            continue;
-        }
+    //     float freq = xToFrequency(pt.x, bounds);
+    //     if (!freqData.empty() && (freq == freqData.back())) {
+    //         std::cout << "vline ";
+    //         skipped_steps++; // TODO: reduce step size along path, check end of path for vertical too
+    //         continue;
+    //     }
 
-        float amp = yToAmplitude(pt.y, bounds);
-        freqData.push_back(freq);
-        ampData.push_back(amp);
-        // std::cout << "\npt :" << i << " " << freq_step << " " << pt.toString() << " " << freq << " " << amp;
+
+
+
+    //     float amp = yToAmplitude(pt.y, bounds);
+    //     freqData.push_back(freq);
+    //     ampData.push_back(amp);
+    //     // std::cout << "\npt :" << i << " " << freq_step << " " << pt.toString() << " " << freq << " " << amp;
+    // }
+
+    auto binSpacing = 44100 / 1024;
+    for (uint8_t i = 0; i < 512; i++) {
+        freqData.push_back(binSpacing * i);
+        ampData.push_back(0);
     }
-    // std::cout << "===\n";
+
+    ampData[2] = 0.5;
+    ampData[3] = 0.5;
+
     generateWavIFFT(freqData, ampData, "C:\\Users\\jcbsk\\Desktop\\test.wav");
     std::cout << "wav generated";
 }
