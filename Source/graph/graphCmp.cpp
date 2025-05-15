@@ -9,6 +9,23 @@ void FrequencyGraph::resized()
 }
 
 
+// class IFFT
+// {
+// private:
+//     const int sampleRate;
+//     const int _fftSize;
+// public:
+//     IFFT(const int rate, const int size) : sampleRate(rate), _fftSize(size)
+//     {
+//         const int numBins = (fftSize / 2) + 1; // Number of real bins (0Hz..Nyquist)
+//         const float nyquistFreq = sampleRate / 2.0f;
+//     }
+//     ~IFFT() {}
+// };
+
+
+
+
 #include <juce_audio_formats/juce_audio_formats.h>
 #include <juce_dsp/juce_dsp.h>
 #include <complex>
@@ -58,34 +75,40 @@ int8_t generateWavIFFT(const std::vector<float>& freqs, const std::vector<float>
     }
 
     // 3. Perform the IFFT
-    fft.perform(freqDomain.data(), outBuffer.data(), true);
-
-
-    // Perform the IFFT
-
     /* It is allowed to pass a vector to a pointer fct parameter, but you must use vect.data() */
     fft.perform(freqDomain.data(), outBuffer.data(), true);
 
-    // Normalize the time-domain signal
-    const float maxSample = *std::max_element(freqDomain.begin(), freqDomain.end(),
-                                              [](float a, float b) { return std::abs(a) < std::abs(b); });
+    // 4. Normalize the time-domain signal
+    const float maxSample = std::abs(*std::max_element(outBuffer.begin(), outBuffer.end(),
+        [](const std::complex<float>& a, const std::complex<float>& b) {
+          return std::abs(a) < std::abs(b);
+        }));
 
     if (maxSample > 0.0f)
     {
-        for (auto& sample : freqDomain)
+        for (auto& sample : outBuffer)
             sample /= maxSample;  // Normalize to -1.0f to +1.0f range
     }
-    // Write to WAV
+
+    // Prepare an audio buffer
     juce::AudioBuffer<float> buffer(1, fftSize);  // Mono channel
     auto* channelData = buffer.getWritePointer(0);
-    std::copy(freqDomain.begin(), freqDomain.begin() + fftSize, channelData);
+
+    // Copy real parts of complex numbers into the audio buffer
+    std::transform(
+        outBuffer.begin(),
+        outBuffer.begin() + fftSize,
+        channelData,
+        [](const std::complex<float>& c) {
+            return c.real();  // Or c.imag() or std::abs(c)?
+        });
+
 
     juce::WavAudioFormat format;
-
     // Use unique_ptr for the stream
     std::unique_ptr<juce::OutputStream> outStream(juce::File(outputPath).createOutputStream());
 
-    if (outStream)
+    if (outStream) // Could allocate
     {
         // Create the writer and transfer ownership of the stream
         juce::AudioFormatWriter* writer = format.createWriterFor(outStream.get(), sampleRate, 1, 16, {}, 0);
@@ -142,9 +165,12 @@ void FrequencyGraph::genFreqPath()
     //     // std::cout << "\npt :" << i << " " << freq_step << " " << pt.toString() << " " << freq << " " << amp;
     // }
 
-    auto binSpacing = 44100 / 1024;
-    for (uint8_t i = 0; i < 512; i++) {
+    auto binSpacing = sampleRate / fftSize;
+    const auto nbBins = fftSize / 2 + 1; // half + nyquist, rest of the FFT size is mirror bins
+
+    for (size_t i = 0; i < (nbBins); i++) { // leave room for mirrors
         freqData.push_back(binSpacing * i);
+
         ampData.push_back(0);
     }
 
