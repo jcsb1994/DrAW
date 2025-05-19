@@ -34,7 +34,8 @@ constexpr int fftSize = 1024;          // FFT size
 constexpr double sampleRate = 44100.0;  // CD sample rate
 
 
-int8_t generateWavIFFT(const std::vector<float>& freqs, const std::vector<float>& amps, const juce::String& outputPath)
+int8_t generateWavIFFT(const std::vector<float>& freqs, const std::vector<float>& amps,
+                        const juce::String& outputPath, float durationSeconds)
 {
     /*
     Since we create a repeating soundwave, we only need one chunk of samples. So 1024 samples that would in a forward
@@ -91,17 +92,23 @@ int8_t generateWavIFFT(const std::vector<float>& freqs, const std::vector<float>
     }
 
     // Prepare an audio buffer
-    juce::AudioBuffer<float> buffer(1, fftSize);  // Mono channel
+    const int totalSamples = static_cast<int>(sampleRate * durationSeconds);
+    juce::AudioBuffer<float> buffer(1, totalSamples);  // Mono
     auto* channelData = buffer.getWritePointer(0);
 
-    // Copy real parts of complex numbers into the audio buffer
-    std::transform(
-        outBuffer.begin(),
-        outBuffer.begin() + fftSize,
-        channelData,
-        [](const std::complex<float>& c) {
-            return c.real();  // Or c.imag() or std::abs(c)?
-        });
+    for (int i = 0; i < totalSamples; ++i) {
+        channelData[i] = outBuffer[i % fftSize].real();  // Repeat waveform
+    }
+
+
+    // // Copy real parts of complex numbers into the audio buffer
+    // std::transform(
+    //     outBuffer.begin(),
+    //     outBuffer.begin() + fftSize,
+    //     channelData,
+    //     [](const std::complex<float>& c) {
+    //         return c.real();  // Or c.imag() or std::abs(c)?
+    //     });
 
 
     juce::WavAudioFormat format;
@@ -177,7 +184,7 @@ void FrequencyGraph::genFreqPath()
     ampData[2] = 0.5;
     ampData[3] = 0.5;
 
-    generateWavIFFT(freqData, ampData, "C:\\Users\\jcbsk\\Desktop\\test.wav");
+    generateWavIFFT(freqData, ampData, "C:\\Users\\jcbsk\\Desktop\\test.wav", 10);
     std::cout << "wav generated";
 }
 
