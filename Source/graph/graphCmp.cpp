@@ -168,8 +168,8 @@ void FrequencyGraph::genFreqPath()
     auto binSpacing = sampleRate / fftSize;
     const auto nbBins = fftSize / 2 + 1; // half + nyquist, rest of the FFT size is mirror bins
 
-    for (size_t i = 0; i < (nbBins); i++) { // leave room for mirrors
-        freqData.push_back(binSpacing * i);
+    for (float i = 0.0f; i < (nbBins); i++) { // leave room for mirrors
+        freqData.push_back((float)(i / nbBins));
 
         ampData.push_back(0);
     }
